@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { Fragment, useLayoutEffect, useRef, useState } from "react";
+import { Fragment, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { SidebarInset } from "../components/ui/sidebar";
 import { useElementWidth } from "../hooks/useElementWidth";
@@ -16,13 +16,16 @@ import {
   visibleColumnCount,
   visibleColumnShares,
 } from "./splitGeometry";
-import { allPanes, hasPaneChrome, paneTabKey, type PaneTab } from "./splitLayout";
+import { allPanes, hasPaneChrome, paneTabKey, type PaneTab, type SplitColumn } from "./splitLayout";
 import { useSplitLayoutStore } from "./splitLayoutStore";
 import { reconcileRoute } from "./splitRouteSync";
 import type { SplitViewSlots } from "./types";
 
 /** Width the inline right panel takes; must match RightPanelTabs' default inline size (stima). */
 const RIGHT_PANEL_WIDTH_ESTIMATE_PX = 480;
+
+/** Shared by panes that do not show the parked-columns chip, so their props stay referentially equal. */
+const NO_PARKED_COLUMNS: ReadonlyArray<SplitColumn> = [];
 
 const INSET_CLASS_NAME = "h-svh min-h-0 overflow-hidden overscroll-y-none md:h-dvh";
 
@@ -65,17 +68,22 @@ export function SplitViewRoot({ routeTarget }: { routeTarget: ThreadRouteTarget 
     state.update((current) => ensureActiveVisible(current, visibleCount));
   }, [maxColumns, visibleCount, workspaceWidth]);
 
+  const columns = layout?.columns;
+  const parkedColumns = useMemo(
+    () => columns?.slice(visibleCount) ?? NO_PARKED_COLUMNS,
+    [columns, visibleCount],
+  );
+  const slots = useMemo<SplitViewSlots>(
+    () => ({ header: headerSlot, terminal: terminalSlot, rightPanel: rightPanelSlot }),
+    [headerSlot, terminalSlot, rightPanelSlot],
+  );
+
   if (!layout) return <SidebarInset className={INSET_CLASS_NAME} />;
 
   const chrome = hasPaneChrome(layout);
   const showActiveBorder = allPanes(layout).length > 1;
   const visibleColumns = layout.columns.slice(0, visibleCount);
   const shares = visibleColumnShares(layout, visibleCount);
-  const slots: SplitViewSlots = {
-    header: headerSlot,
-    terminal: terminalSlot,
-    rightPanel: rightPanelSlot,
-  };
   const presentation = rightPanelPresentation({
     workspaceWidthPx: workspaceWidth,
     rightPanelWidthPx: RIGHT_PANEL_WIDTH_ESTIMATE_PX,
@@ -109,8 +117,8 @@ export function SplitViewRoot({ routeTarget }: { routeTarget: ThreadRouteTarget 
                         rightPanelPresentation={presentation}
                         parkedColumns={
                           paneIndex === 0 && columnIndex === visibleColumns.length - 1
-                            ? layout.columns.slice(visibleCount)
-                            : []
+                            ? parkedColumns
+                            : NO_PARKED_COLUMNS
                         }
                       />
                     </Fragment>

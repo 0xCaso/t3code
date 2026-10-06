@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { useCallback } from "react";
+import { memo, useCallback, useMemo } from "react";
 
 import { ThreadTargetView, type ThreadTargetNavigation } from "../components/ThreadRouteView";
 import { buildThreadRouteParams } from "../threadRoutes";
@@ -15,9 +15,13 @@ import {
   type SplitPane as SplitPaneModel,
 } from "./splitLayout";
 import { useSplitLayoutStore } from "./splitLayoutStore";
-import type { SplitViewSlots } from "./types";
+import type { PaneTabBarControls, SplitViewSlots } from "./types";
 
-export function SplitPane(props: {
+/**
+ * Memoized so a layout change only re-renders the panes whose own props changed; callers must pass
+ * stable `slots` and `parkedColumns`.
+ */
+export const SplitPane = memo(function SplitPane(props: {
   pane: SplitPaneModel;
   active: boolean;
   chrome: boolean;
@@ -26,7 +30,7 @@ export function SplitPane(props: {
   rightPanelPresentation: "inline" | "sheet";
   parkedColumns: ReadonlyArray<SplitColumn>;
 }) {
-  const { pane, active, chrome } = props;
+  const { pane, active, chrome, slots, rightPanelPresentation, parkedColumns } = props;
   const navigate = useNavigate();
   const tab = paneActiveTab(pane);
   const tabKey = paneTabKey(tab);
@@ -60,6 +64,17 @@ export function SplitPane(props: {
     [active, navigate, tabKey],
   );
 
+  const renderTabBar = useCallback(
+    (controls: PaneTabBarControls) => (
+      <PaneTabBar pane={pane} controls={controls} parkedColumns={parkedColumns} />
+    ),
+    [pane, parkedColumns],
+  );
+  const chromeProps = useMemo(
+    () => ({ active, slots, rightPanelPresentation, renderTabBar }),
+    [active, slots, rightPanelPresentation, renderTabBar],
+  );
+
   return (
     <PaneInteractiveContext value={!chrome || active}>
       <div
@@ -71,22 +86,7 @@ export function SplitPane(props: {
         <ThreadTargetView
           target={tab}
           onNavigate={onNavigate}
-          {...(chrome
-            ? {
-                pane: {
-                  active,
-                  slots: props.slots,
-                  rightPanelPresentation: props.rightPanelPresentation,
-                  renderTabBar: (controls) => (
-                    <PaneTabBar
-                      pane={pane}
-                      controls={controls}
-                      parkedColumns={props.parkedColumns}
-                    />
-                  ),
-                },
-              }
-            : {})}
+          {...(chrome ? { pane: chromeProps } : {})}
         />
         {props.showActiveBorder && active ? (
           <div
@@ -97,4 +97,4 @@ export function SplitPane(props: {
       </div>
     </PaneInteractiveContext>
   );
-}
+});
