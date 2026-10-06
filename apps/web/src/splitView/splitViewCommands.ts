@@ -1,5 +1,6 @@
 import type { KeybindingCommand } from "@t3tools/contracts";
 
+import { setPaneActivatedByKeyboard } from "./paneInteractive";
 import { activatePane, closePane, focusNeighbor, paneByOrdinal } from "./splitLayout";
 import { useSplitLayoutStore } from "./splitLayoutStore";
 
@@ -15,6 +16,16 @@ export function startThreadInNewTab(startThread: () => Promise<unknown>): void {
 
 /** Handles a `splitView.*` keybinding command against the current layout. */
 export function runSplitViewCommand(
+  command: KeybindingCommand,
+  actions: { startNewTab: () => void },
+): void {
+  const before = useSplitLayoutStore.getState().layout?.activePaneId;
+  applySplitViewCommand(command, actions);
+  const after = useSplitLayoutStore.getState().layout?.activePaneId;
+  if (after !== undefined && after !== before) setPaneActivatedByKeyboard(true);
+}
+
+function applySplitViewCommand(
   command: KeybindingCommand,
   actions: { startNewTab: () => void },
 ): void {

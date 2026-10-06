@@ -4,7 +4,7 @@ import { memo, useCallback, useMemo } from "react";
 import { ThreadTargetView, type ThreadTargetNavigation } from "../components/ThreadRouteView";
 import { buildThreadRouteParams } from "../threadRoutes";
 import { PaneTabBar } from "./PaneTabBar";
-import { PaneInteractiveContext } from "./paneInteractive";
+import { PaneInteractiveContext, setPaneActivatedByKeyboard } from "./paneInteractive";
 import {
   activatePane,
   closeThread,
@@ -38,6 +38,10 @@ export const SplitPane = memo(function SplitPane(props: {
   const activate = useCallback(() => {
     useSplitLayoutStore.getState().update((layout) => activatePane(layout, pane.id));
   }, [pane.id]);
+  const activateByPointer = useCallback(() => {
+    setPaneActivatedByKeyboard(false);
+    activate();
+  }, [activate]);
 
   const onNavigate = useCallback(
     (next: ThreadTargetNavigation) => {
@@ -80,7 +84,7 @@ export const SplitPane = memo(function SplitPane(props: {
       <div
         className="relative flex min-h-0 min-w-0 flex-1 flex-col"
         data-split-pane={pane.id}
-        onPointerDownCapture={activate}
+        onPointerDownCapture={activateByPointer}
         onFocusCapture={activate}
       >
         <ThreadTargetView

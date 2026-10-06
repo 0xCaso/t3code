@@ -544,7 +544,7 @@ import {
 } from "./ChatView.logic";
 import { useLocalStorage } from "~/hooks/useLocalStorage";
 import { useComposerHandleContext } from "../composerHandleContext";
-import { usePaneInteractive } from "../splitView/paneInteractive";
+import { takePaneActivatedByKeyboard, usePaneInteractive } from "../splitView/paneInteractive";
 import {
   awaitAttachmentUploads,
   getUploadedAttachments,
@@ -4495,9 +4495,14 @@ export default function ChatView(props: ChatViewProps) {
     [draftId, routeThreadKey, routeThreadRef, serverThread],
   );
 
+  // Stable across the shared/local ref swap, so effects keyed on it do not re-run when the
+  // pane's activation changes. The composer sits in the local ref unless this pane owns the
+  // shared handle; a shared handle read from an inactive pane would be another pane's composer.
   const focusComposer = useCallback(() => {
-    composerRef.current?.focusAtEnd();
-  }, [composerRef]);
+    const composer =
+      localComposerRef.current ?? (interactiveRef.current ? sharedComposerRef?.current : null);
+    composer?.focusAtEnd();
+  }, [sharedComposerRef]);
   const canInterruptRunningThread = deriveCanInterruptRunningThread(
     activeThread !== undefined,
     activeRuntime,
@@ -6595,8 +6600,16 @@ export default function ChatView(props: ChatViewProps) {
     // Environment identity is part of the scroll session too.
   }, [activeThreadKey]);
 
+  const autofocusSeenRef = useRef({ interactive, threadId: activeThread?.id });
   useEffect(() => {
+    const seen = autofocusSeenRef.current;
+    autofocusSeenRef.current = { interactive, threadId: activeThread?.id };
     if (!interactive) return;
+    // A pane activated by a click keeps the focus the click gave it (an input, a text
+    // selection); a split view shortcut hands focus to the composer.
+    if (!seen.interactive && !takePaneActivatedByKeyboard() && seen.threadId === activeThread?.id) {
+      return;
+    }
     if (!activeThread?.id || terminalUiState.terminalOpen) return;
     const frame = window.requestAnimationFrame(() => {
       focusComposer();
