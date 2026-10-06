@@ -4504,7 +4504,10 @@ export default function ChatView(props: ChatViewProps) {
       );
     }
   }, [activeThread, environmentId, interruptThreadTurn, setThreadError]);
-  useEffect(() => subscribeSnapShotComposerFocus(focusComposer), [focusComposer]);
+  useEffect(() => {
+    if (!interactive) return;
+    return subscribeSnapShotComposerFocus(focusComposer);
+  }, [focusComposer, interactive]);
   const scheduleComposerFocus = useCallback(() => {
     window.requestAnimationFrame(() => {
       focusComposer();
