@@ -1,12 +1,10 @@
 import { scopedThreadKey } from "@t3tools/client-runtime/environment";
 import type { ScopedThreadRef } from "@t3tools/contracts";
-import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
 import ChatView from "./ChatView";
 import { resolveDraftPromotionNavigationTarget, threadHasStarted } from "./ChatView.logic";
 import { waitForDraftHeroTransition } from "./chat/draftHeroTransition";
-import { SidebarInset } from "./ui/sidebar";
 import {
   finalizePromotedDraftThreadByRef,
   markPromotedDraftThreadByRef,
@@ -17,27 +15,35 @@ import { useSidebarPendingFileDropStore } from "../sidebarPendingFileDropStore";
 import { useEnvironmentThreadRefs, useThreadRefs, useThreadShell } from "../state/entities";
 import { useEnvironmentQuery } from "../state/query";
 import { environmentShell } from "../state/shell";
-import {
-  buildThreadRouteParams,
-  resolveThreadRouteRenderState,
-  type ThreadRouteTarget,
-} from "../threadRoutes";
+import { resolveThreadRouteRenderState, type ThreadRouteTarget } from "../threadRoutes";
 
 /**
- * The single chat surface behind both `/draft/$draftId` and
- * `/$environmentId/$threadId`. Each draft gets its own ChatView instance (so
+ * What a thread view asks its host to do instead of navigating itself: show a
+ * different thread (a draft was promoted), or leave because the thread or
+ * draft is gone (`redirectHome` says whether anything is left to go to).
+ */
+export type ThreadTargetNavigation =
+  | { readonly kind: "thread"; readonly threadRef: ScopedThreadRef }
+  | { readonly kind: "gone"; readonly redirectHome: boolean };
+
+/**
+ * The chat surface for one thread or draft, rendered inside a pane. Whoever
+ * mounts it decides what navigating means (a route change, or a tab update in
+ * an inactive pane) and receives those requests through `onNavigate`. Each draft gets its own ChatView instance (so
  * a background send's state stays with the draft it came from), and that
  * instance carries the draft through its promotion to a server thread: the
- * thread route keeps keying by the draft id while the draft record exists,
- * so the route swap only changes props and the timeline never paints an
- * empty frame. Plain server threads are unkeyed, so navigating between them
- * reuses one instance as ChatView expects.
- *
- * Rendered by the `_chat` layout rather than by the two leaf routes, since
- * an element only survives a route swap when the same parent renders it.
+ * thread keeps keying by the draft id while the draft record exists, so the
+ * swap only changes props and the timeline never paints an empty frame.
+ * Plain server threads are unkeyed, so moving between them reuses one
+ * instance as ChatView expects.
  */
-export function ThreadRouteView({ target }: { target: ThreadRouteTarget }) {
-  const navigate = useNavigate();
+export function ThreadTargetView({
+  target,
+  onNavigate,
+}: {
+  target: ThreadRouteTarget;
+  onNavigate: (next: ThreadTargetNavigation) => void;
+}) {
   const draftId = target.kind === "draft" ? target.draftId : null;
   const draftSession = useComposerDraftStore((store) =>
     draftId === null ? null : store.getDraftSession(draftId),
@@ -123,23 +129,19 @@ export function ThreadRouteView({ target }: { target: ThreadRouteTarget }) {
       if (cancelled) {
         return;
       }
-      void navigate({
-        to: "/$environmentId/$threadId",
-        params: buildThreadRouteParams(canonicalThreadRef),
-        replace: true,
-      });
+      onNavigate({ kind: "thread", threadRef: canonicalThreadRef });
     });
     return () => {
       cancelled = true;
     };
-  }, [canonicalThreadRef, navigate]);
+  }, [canonicalThreadRef, onNavigate]);
 
   useEffect(() => {
     if (target.kind !== "draft" || draftSession || canonicalThreadRef) {
       return;
     }
-    void navigate({ to: "/", replace: true });
-  }, [canonicalThreadRef, draftSession, navigate, target.kind]);
+    onNavigate({ kind: "gone", redirectHome: true });
+  }, [canonicalThreadRef, draftSession, onNavigate, target.kind]);
 
   useEffect(() => {
     if (target.kind !== "server" || !bootstrapComplete) {
@@ -151,11 +153,9 @@ export function ThreadRouteView({ target }: { target: ThreadRouteTarget }) {
     if (renderState === "missing") {
       const { clearPendingFileDropsForThread } = useSidebarPendingFileDropStore.getState();
       clearPendingFileDropsForThread(target.threadRef);
-      if (environmentHasAnyThreads) {
-        void navigate({ to: "/", replace: true });
-      }
+      onNavigate({ kind: "gone", redirectHome: environmentHasAnyThreads });
     }
-  }, [bootstrapComplete, environmentHasAnyThreads, navigate, renderState, target]);
+  }, [bootstrapComplete, environmentHasAnyThreads, onNavigate, renderState, target]);
 
   useEffect(() => {
     if (target.kind !== "server" || !serverThreadStarted || !draftThread) {
@@ -189,9 +189,5 @@ export function ThreadRouteView({ target }: { target: ThreadRouteTarget }) {
     );
   }
 
-  return (
-    <SidebarInset className="h-svh min-h-0 overflow-hidden overscroll-y-none md:h-dvh">
-      {view}
-    </SidebarInset>
-  );
+  return view;
 }
