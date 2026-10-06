@@ -8,6 +8,7 @@ import {
 import { CheckIcon } from "lucide-react";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "../ui/collapsible";
 import { cn } from "~/lib/utils";
+import { usePaneInteractive } from "../../splitView/paneInteractive";
 import { ComposerBanner } from "./ComposerBanner";
 
 interface PendingUserInputPanelProps {
@@ -140,9 +141,11 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
   // Keyboard shortcut: number keys 1-9 select corresponding options when focus is
   // outside editable fields. Multi-select prompts toggle options in place; single-
   // select prompts keep the existing auto-advance behavior. Collapsed prompts opt
-  // out, since the numbers they refer to are not on screen.
+  // out, since the numbers they refer to are not on screen. In a split view only the
+  // active pane listens, so one key never answers every visible question.
+  const interactive = usePaneInteractive();
   useEffect(() => {
-    if (!activeQuestion || responseDisabled || isCollapsed) return;
+    if (!interactive || !activeQuestion || responseDisabled || isCollapsed) return;
     const handler = (event: globalThis.KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
       const target = event.target;
@@ -166,7 +169,7 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [activeQuestion, handleOptionSelection, isCollapsed, responseDisabled]);
+  }, [activeQuestion, handleOptionSelection, interactive, isCollapsed, responseDisabled]);
 
   if (!activeQuestion) {
     return null;
