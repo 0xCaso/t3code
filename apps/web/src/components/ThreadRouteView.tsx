@@ -12,6 +12,7 @@ import {
   useComposerDraftStore,
 } from "../composerDraftStore";
 import { useSidebarPendingFileDropStore } from "../sidebarPendingFileDropStore";
+import type { ChatViewPane } from "../splitView/types";
 import { useEnvironmentThreadRefs, useThreadRefs, useThreadShell } from "../state/entities";
 import { useEnvironmentQuery } from "../state/query";
 import { environmentShell } from "../state/shell";
@@ -40,9 +41,11 @@ export type ThreadTargetNavigation =
 export function ThreadTargetView({
   target,
   onNavigate,
+  pane,
 }: {
   target: ThreadRouteTarget;
   onNavigate: (next: ThreadTargetNavigation) => void;
+  pane?: ChatViewPane;
 }) {
   const draftId = target.kind === "draft" ? target.draftId : null;
   const draftSession = useComposerDraftStore((store) =>
@@ -175,6 +178,7 @@ export function ThreadTargetView({
           threadId={draftSession.threadId}
           routeKind="draft"
           forceExpandedMobileComposer
+          pane={pane}
         />
       );
     }
@@ -185,6 +189,7 @@ export function ThreadTargetView({
         environmentId={target.threadRef.environmentId}
         threadId={target.threadRef.threadId}
         routeKind="server"
+        pane={pane}
       />
     );
   }

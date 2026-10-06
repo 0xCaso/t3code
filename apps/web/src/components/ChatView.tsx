@@ -155,7 +155,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { flushSync } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import { assistantCitationFromLocation } from "../lib/assistantCitationNavigation";
 import { isMacPlatform } from "../lib/utils";
@@ -276,6 +276,7 @@ import { PullRequestDetailPanel } from "./pullRequest/PullRequestDetailPanel";
 import { PullRequestDetailGhost } from "./pullRequest/PullRequestGhosts";
 import { PullRequestsUnavailableState } from "./pullRequest/PullRequestsUnavailableState";
 import { RightPanelTabs } from "./RightPanelTabs";
+import type { ChatViewPane } from "../splitView/types";
 import { LinkPullRequestDialogHost } from "./pullRequest/LinkPullRequestDialog";
 import { ThreadPullRequestsPanel } from "./pullRequest/ThreadPullRequestsPanel";
 import { useDeviceState } from "~/state/device";
@@ -813,6 +814,7 @@ type ChatViewProps =
       onDiffPanelOpen?: () => void;
       reserveTitleBarControlInset?: boolean;
       forceExpandedMobileComposer?: boolean;
+      pane?: ChatViewPane | undefined;
       routeKind: "server";
       draftId?: never;
     }
@@ -822,6 +824,7 @@ type ChatViewProps =
       onDiffPanelOpen?: () => void;
       reserveTitleBarControlInset?: boolean;
       forceExpandedMobileComposer?: boolean;
+      pane?: ChatViewPane | undefined;
       routeKind: "draft";
       draftId: DraftId;
     };
@@ -1532,6 +1535,7 @@ export default function ChatView(props: ChatViewProps) {
     onDiffPanelOpen,
     reserveTitleBarControlInset = true,
     forceExpandedMobileComposer = false,
+    pane,
   } = props;
   const draftId = routeKind === "draft" ? props.draftId : null;
   const handleNewThread = useNewThreadHandler();
@@ -1885,7 +1889,12 @@ export default function ChatView(props: ChatViewProps) {
   >({});
   const [pendingUserInputQuestionIndexByRequestId, setPendingUserInputQuestionIndexByRequestId] =
     useState<Record<string, number>>({});
-  const shouldUsePlanSidebarSheet = useMediaQuery(RIGHT_PANEL_INLINE_LAYOUT_MEDIA_QUERY);
+  const mediaPrefersRightPanelSheet = useMediaQuery(RIGHT_PANEL_INLINE_LAYOUT_MEDIA_QUERY);
+  // In a split pane the grid decides: the pane's own width says nothing about the window.
+  const shouldUsePlanSidebarSheet = pane
+    ? pane.rightPanelPresentation === "sheet"
+    : mediaPrefersRightPanelSheet;
+  const ownsWindowChrome = !pane || pane.active;
   const isMobileViewport = useMediaQuery("max-sm");
   const [workspaceLayoutRef, workspaceLayoutWidth] = useElementWidth<HTMLDivElement>();
   const threadPanelPopoverAnchorRef = useRef<HTMLElement | null>(null);
@@ -10841,10 +10850,10 @@ export default function ChatView(props: ChatViewProps) {
   const panelToggleControls = (
     <PanelLayoutControls
       {...panelToggleControlProps}
-      showThreadPanelControl={!inlineRightPanelOwnsTitleBar}
+      showThreadPanelControl={!pane && !inlineRightPanelOwnsTitleBar}
     />
   );
-  const threadPanelHeaderControl = (
+  const threadPanelHeaderControl = pane ? null : (
     <div
       className="absolute top-[var(--workspace-controls-top)] right-[var(--workspace-controls-right)] z-50 flex h-[var(--workspace-topbar-height)] items-center [-webkit-app-region:no-drag]"
       data-workspace-titlebar-controls
@@ -10896,6 +10905,114 @@ export default function ChatView(props: ChatViewProps) {
     addFolders: (folders) => composerRef.current?.addDroppedFolders(folders),
   });
 
+  /* Top bar */
+  const chatHeader = (
+    <header
+      ref={pane ? undefined : threadPanelPopoverAnchorRef}
+      data-chat-header
+      className={cn(
+        "relative bg-background [[data-panel-animations=true]_&]:motion-safe:transition-[padding-left] [[data-panel-animations=true]_&]:motion-safe:duration-(--panel-animation-duration) [[data-panel-animations=true]_&]:motion-safe:ease-out",
+        isElectron
+          ? cn(
+              "drag-region flex h-[var(--workspace-topbar-height)] min-h-[var(--workspace-topbar-height)] shrink-0 items-center px-3 sm:px-5",
+              reserveTitleBarControlInset &&
+                !inlineRightPanelOwnsTitleBar &&
+                "wco:pr-(--workspace-native-controls-inset)",
+            )
+          : "flex h-[var(--workspace-topbar-height)] min-h-[var(--workspace-topbar-height)] shrink-0 items-center pl-(--workspace-gutter-start) pr-(--workspace-gutter-end)",
+        COLLAPSED_SIDEBAR_TITLEBAR_INSET_CLASS,
+      )}
+    >
+      {isElectron && rightPanelControlsAtRoot ? (
+        <span
+          aria-hidden
+          className="pointer-events-none fixed top-[var(--workspace-controls-top)] right-[var(--workspace-controls-right)] h-[var(--workspace-topbar-height)] w-28 [-webkit-app-region:no-drag]"
+        />
+      ) : null}
+      {!rightPanelControlsAtRoot && !rightPanelControlsInPanel ? panelLayoutControls : null}
+      {inlineRightPanelOwnsTitleBar ? threadPanelHeaderControl : null}
+      <ChatHeader
+        activeThreadEnvironmentId={activeThread.environmentId}
+        activeThreadId={activeThread.id}
+        isServerThread={isServerThread}
+        activeThreadTitle={activeThread.title}
+        activeProject={activeProject ?? null}
+        rightPanelOpen={inlineRightPanelOwnsTitleBar}
+        onNewThreadInProject={handleNewThreadInActiveProject}
+        {...(activeDraftLogicalProjectKey
+          ? { onOpenProjectSettings: handleOpenDraftProjectSettings }
+          : {})}
+      />
+    </header>
+  );
+
+  const terminalDrawers = (
+    <>
+      {mountedTerminalThreadRefs.map(({ key: mountedThreadKey, threadRef: mountedThreadRef }) => (
+        <PersistentThreadTerminalDrawer
+          key={mountedThreadKey}
+          threadRef={mountedThreadRef}
+          threadId={mountedThreadRef.threadId}
+          active={mountedThreadKey === activeThreadKey}
+          launchContext={
+            mountedThreadKey === activeThreadKey ? (activeTerminalLaunchContext ?? null) : null
+          }
+          focusRequestId={mountedThreadKey === activeThreadKey ? terminalFocusRequestId : 0}
+          splitShortcutLabel={splitTerminalShortcutLabel ?? undefined}
+          splitVerticalShortcutLabel={splitTerminalVerticalShortcutLabel ?? undefined}
+          newShortcutLabel={newTerminalShortcutLabel ?? undefined}
+          closeShortcutLabel={closeTerminalShortcutLabel ?? undefined}
+          keybindings={keybindings}
+          onAddTerminalContext={addTerminalContextToDraft}
+        />
+      ))}
+    </>
+  );
+  const inlineRightPanel =
+    rightPanelPresent && !shouldUsePlanSidebarSheet && activeThreadRef ? (
+      <RightPanelTabs
+        mode="inline"
+        open={rightPanelOpen}
+        maximized={rightPanelMaximized}
+        inlineSize={previewPanelInlineSize}
+        surfaces={renderedRightPanelSurfaces}
+        environmentId={activeThreadRef.environmentId}
+        activeSurfaceId={renderedRightPanelSurface?.id ?? null}
+        pendingSurfaceIds={pendingFileSurfaceIds}
+        previewSessions={activePreviewState.sessions}
+        desktopByTabId={activePreviewState.desktopByTabId}
+        previewRuntimeTabId={resolvePreviewRuntimeTabId}
+        terminalLabelsById={activeTerminalLabelsById}
+        onActivate={activateRightPanelSurface}
+        onCloseSurface={closeRightPanelSurface}
+        onRenameDevice={(surfaceId, title) => {
+          if (activeThreadRef)
+            useRightPanelStore.getState().renameDevice(activeThreadRef, surfaceId, title);
+        }}
+        onCloseOtherSurfaces={closeOtherRightPanelSurfaces}
+        onCloseSurfacesToRight={closeRightPanelSurfacesToRight}
+        onCloseAllSurfaces={closeAllRightPanelSurfaces}
+        onCopyFilePath={copyRightPanelFilePath}
+        onAddBrowser={() => createBrowserSurface()}
+        onAddBrowserInProfile={createBrowserSurface}
+        onAddTerminal={addTerminalSurface}
+        onAddDiff={addDiffSurface}
+        onAddFiles={addFilesSurface}
+        onAddPullRequest={addPullRequestSurface}
+        onAddPullRequests={addPullRequestsSurface}
+        onAddDevice={addDeviceSurface}
+        browserAvailable={isPreviewSupportedInRuntime()}
+        terminalAvailable={activeProject !== null}
+        diffAvailable={isServerThread && isGitRepo}
+        filesAvailable={activeProject !== null}
+        pullRequestAvailable={pullRequestSurfaceAvailable}
+        pullRequestsAvailable={pullRequestsSurfaceAvailable}
+        deviceAvailable={activeThreadRef !== null}
+      >
+        {rightPanelContent}
+      </RightPanelTabs>
+    ) : null;
+
   return (
     <div
       ref={workspaceLayoutRef}
@@ -10924,7 +11041,7 @@ export default function ChatView(props: ChatViewProps) {
           ) : null}
         </WizardPopup>
       </Dialog>
-      {rightPanelControlsAtRoot ? panelLayoutControls : null}
+      {ownsWindowChrome && rightPanelControlsAtRoot ? panelLayoutControls : null}
       <div
         className={cn(
           "flex min-h-0 min-w-0 flex-col overflow-x-hidden",
@@ -10932,44 +11049,14 @@ export default function ChatView(props: ChatViewProps) {
         )}
         data-chat-column-maximized-away={rightPanelMaximized ? "true" : "false"}
       >
-        {/* Top bar */}
-        <header
-          ref={threadPanelPopoverAnchorRef}
-          data-chat-header
-          className={cn(
-            "relative bg-background [[data-panel-animations=true]_&]:motion-safe:transition-[padding-left] [[data-panel-animations=true]_&]:motion-safe:duration-(--panel-animation-duration) [[data-panel-animations=true]_&]:motion-safe:ease-out",
-            isElectron
-              ? cn(
-                  "drag-region flex h-[var(--workspace-topbar-height)] min-h-[var(--workspace-topbar-height)] shrink-0 items-center px-3 sm:px-5",
-                  reserveTitleBarControlInset &&
-                    !inlineRightPanelOwnsTitleBar &&
-                    "wco:pr-(--workspace-native-controls-inset)",
-                )
-              : "flex h-[var(--workspace-topbar-height)] min-h-[var(--workspace-topbar-height)] shrink-0 items-center pl-(--workspace-gutter-start) pr-(--workspace-gutter-end)",
-            COLLAPSED_SIDEBAR_TITLEBAR_INSET_CLASS,
-          )}
-        >
-          {isElectron && rightPanelControlsAtRoot ? (
-            <span
-              aria-hidden
-              className="pointer-events-none fixed top-[var(--workspace-controls-top)] right-[var(--workspace-controls-right)] h-[var(--workspace-topbar-height)] w-28 [-webkit-app-region:no-drag]"
-            />
-          ) : null}
-          {!rightPanelControlsAtRoot && !rightPanelControlsInPanel ? panelLayoutControls : null}
-          {inlineRightPanelOwnsTitleBar ? threadPanelHeaderControl : null}
-          <ChatHeader
-            activeThreadEnvironmentId={activeThread.environmentId}
-            activeThreadId={activeThread.id}
-            isServerThread={isServerThread}
-            activeThreadTitle={activeThread.title}
-            activeProject={activeProject ?? null}
-            rightPanelOpen={inlineRightPanelOwnsTitleBar}
-            onNewThreadInProject={handleNewThreadInActiveProject}
-            {...(activeDraftLogicalProjectKey
-              ? { onOpenProjectSettings: handleOpenDraftProjectSettings }
-              : {})}
-          />
-        </header>
+        {pane
+          ? pane.renderTabBar({
+              toggleThreadDetails: toggleThreadPanel,
+              threadDetailsAnchorRef: threadPanelPopoverAnchorRef,
+              threadDetailsAttention: panelToggleControlProps.threadPanelHasAttention,
+            })
+          : chatHeader}
+        {pane?.active && pane.slots.header ? createPortal(chatHeader, pane.slots.header) : null}
 
         {/* Main content area with optional plan sidebar */}
         <div className="relative flex min-h-0 min-w-0 flex-1">
@@ -11530,70 +11617,19 @@ export default function ChatView(props: ChatViewProps) {
         </div>
         {/* end horizontal flex container */}
 
-        {mountedTerminalThreadRefs.map(({ key: mountedThreadKey, threadRef: mountedThreadRef }) => (
-          <PersistentThreadTerminalDrawer
-            key={mountedThreadKey}
-            threadRef={mountedThreadRef}
-            threadId={mountedThreadRef.threadId}
-            active={mountedThreadKey === activeThreadKey}
-            launchContext={
-              mountedThreadKey === activeThreadKey ? (activeTerminalLaunchContext ?? null) : null
-            }
-            focusRequestId={mountedThreadKey === activeThreadKey ? terminalFocusRequestId : 0}
-            splitShortcutLabel={splitTerminalShortcutLabel ?? undefined}
-            splitVerticalShortcutLabel={splitTerminalVerticalShortcutLabel ?? undefined}
-            newShortcutLabel={newTerminalShortcutLabel ?? undefined}
-            closeShortcutLabel={closeTerminalShortcutLabel ?? undefined}
-            keybindings={keybindings}
-            onAddTerminalContext={addTerminalContextToDraft}
-          />
-        ))}
+        {pane
+          ? pane.active && pane.slots.terminal
+            ? createPortal(terminalDrawers, pane.slots.terminal)
+            : null
+          : terminalDrawers}
       </div>
 
-      {rightPanelPresent && !shouldUsePlanSidebarSheet && activeThreadRef ? (
-        <RightPanelTabs
-          mode="inline"
-          open={rightPanelOpen}
-          maximized={rightPanelMaximized}
-          inlineSize={previewPanelInlineSize}
-          surfaces={renderedRightPanelSurfaces}
-          environmentId={activeThreadRef.environmentId}
-          activeSurfaceId={renderedRightPanelSurface?.id ?? null}
-          pendingSurfaceIds={pendingFileSurfaceIds}
-          previewSessions={activePreviewState.sessions}
-          desktopByTabId={activePreviewState.desktopByTabId}
-          previewRuntimeTabId={resolvePreviewRuntimeTabId}
-          terminalLabelsById={activeTerminalLabelsById}
-          onActivate={activateRightPanelSurface}
-          onCloseSurface={closeRightPanelSurface}
-          onRenameDevice={(surfaceId, title) => {
-            if (activeThreadRef)
-              useRightPanelStore.getState().renameDevice(activeThreadRef, surfaceId, title);
-          }}
-          onCloseOtherSurfaces={closeOtherRightPanelSurfaces}
-          onCloseSurfacesToRight={closeRightPanelSurfacesToRight}
-          onCloseAllSurfaces={closeAllRightPanelSurfaces}
-          onCopyFilePath={copyRightPanelFilePath}
-          onAddBrowser={() => createBrowserSurface()}
-          onAddBrowserInProfile={createBrowserSurface}
-          onAddTerminal={addTerminalSurface}
-          onAddDiff={addDiffSurface}
-          onAddFiles={addFilesSurface}
-          onAddPullRequest={addPullRequestSurface}
-          onAddPullRequests={addPullRequestsSurface}
-          onAddDevice={addDeviceSurface}
-          browserAvailable={isPreviewSupportedInRuntime()}
-          terminalAvailable={activeProject !== null}
-          diffAvailable={isServerThread && isGitRepo}
-          filesAvailable={activeProject !== null}
-          pullRequestAvailable={pullRequestSurfaceAvailable}
-          pullRequestsAvailable={pullRequestsSurfaceAvailable}
-          deviceAvailable={activeThreadRef !== null}
-        >
-          {rightPanelContent}
-        </RightPanelTabs>
-      ) : null}
-      {rightPanelPresent && shouldUsePlanSidebarSheet && activeThreadRef ? (
+      {pane
+        ? pane.active && pane.slots.rightPanel
+          ? createPortal(inlineRightPanel, pane.slots.rightPanel)
+          : null
+        : inlineRightPanel}
+      {ownsWindowChrome && rightPanelPresent && shouldUsePlanSidebarSheet && activeThreadRef ? (
         <RightPanelSheet
           animationDurationMs={panelAnimationsActive ? panelAnimationDurationMs : 0}
           open={rightPanelOpen}
