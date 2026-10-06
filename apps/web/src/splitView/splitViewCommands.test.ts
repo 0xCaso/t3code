@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it } from "vite-plus/test";
 import { setPaneActivatedByKeyboard, takePaneActivatedByKeyboard } from "./paneInteractive";
 import { createLayout, openBeside, type PaneTab } from "./splitLayout";
 import { useSplitLayoutStore } from "./splitLayoutStore";
-import { runSplitViewCommand } from "./splitViewCommands";
+import { runSplitViewCommand, startThreadInNewTab } from "./splitViewCommands";
 
 const tab = (id: string): PaneTab => ({
   kind: "server",
@@ -37,5 +37,21 @@ describe("runSplitViewCommand keyboard activation", () => {
   it("marks closing the active pane, since its neighbour takes over", () => {
     runSplitViewCommand("splitView.closePane", noActions);
     expect(takePaneActivatedByKeyboard()).toBe(true);
+  });
+});
+
+describe("startThreadInNewTab", () => {
+  it("resets the new-tab flag and handles the rejection when starting the thread fails", async () => {
+    let settle!: () => void;
+    const settled = new Promise<void>((resolve) => (settle = resolve));
+    startThreadInNewTab(() => {
+      expect(useSplitLayoutStore.getState().openRouteInNewTab).toBe(true);
+      settle();
+      return Promise.reject(new Error("no project"));
+    });
+    await settled;
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(useSplitLayoutStore.getState().openRouteInNewTab).toBe(false);
   });
 });

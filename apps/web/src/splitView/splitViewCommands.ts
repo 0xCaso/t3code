@@ -1,17 +1,28 @@
 import type { KeybindingCommand } from "@t3tools/contracts";
 
+import { stackedThreadToast, toastManager } from "../components/ui/toast";
 import { setPaneActivatedByKeyboard } from "./paneInteractive";
 import { activatePane, closePane, focusNeighbor, paneByOrdinal } from "./splitLayout";
 import { useSplitLayoutStore } from "./splitLayoutStore";
 
 /**
  * Runs `startThread` with the next route opening as a new tab instead of
- * replacing the active one. Shared by the new-tab shortcut and the palette.
+ * replacing the active one. Shared by the new-tab shortcut, the palette and the tab bar's +.
  */
 export function startThreadInNewTab(startThread: () => Promise<unknown>): void {
   const { setOpenRouteInNewTab } = useSplitLayoutStore.getState();
   setOpenRouteInNewTab(true);
-  void startThread().finally(() => setOpenRouteInNewTab(false));
+  void startThread()
+    .catch((error: unknown) => {
+      toastManager.add(
+        stackedThreadToast({
+          type: "error",
+          title: "Could not create thread",
+          description: error instanceof Error ? error.message : "An error occurred.",
+        }),
+      );
+    })
+    .finally(() => setOpenRouteInNewTab(false));
 }
 
 /** Handles a `splitView.*` keybinding command against the current layout. */
