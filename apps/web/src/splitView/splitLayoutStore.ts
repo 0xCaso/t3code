@@ -5,6 +5,7 @@ import { createJSONStorage, persist } from "zustand/middleware";
 
 import type { DraftId } from "../composerDraftStore";
 import { resolveStorage } from "../lib/storage";
+import { fitColumnOrder } from "./splitGeometry";
 import {
   MAX_COLUMNS,
   MAX_PANES_PER_COLUMN,
@@ -23,6 +24,8 @@ import {
 
 interface SplitLayoutState {
   readonly layout: SplitLayout | null;
+  /** Column order before the window got too narrow for the active column; see fitColumnOrder. */
+  readonly columnOrder: ReadonlyArray<string> | null;
   /** One-shot: the next thread route opens as a new tab of the active pane (+ and mod+t). */
   readonly openRouteInNewTab: boolean;
   /** Measured by SplitViewRoot; not persisted. */
@@ -32,6 +35,8 @@ interface SplitLayoutState {
   update: (fn: (layout: SplitLayout) => SplitLayout | null) => void;
   setOpenRouteInNewTab: (value: boolean) => void;
   setCapacity: (capacity: { visibleColumnCount: number; maxColumns: number }) => void;
+  /** Keeps the active column on screen and restores the order once there is room. */
+  fitColumns: (visibleColumnCount: number) => void;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -101,10 +106,15 @@ export function sanitizeLayout(value: unknown): SplitLayout | null {
   return { columns: normalized, activePaneId };
 }
 
+function sanitizeColumnOrder(value: unknown): ReadonlyArray<string> | null {
+  return Array.isArray(value) && value.every((id) => typeof id === "string") ? value : null;
+}
+
 export const useSplitLayoutStore = create<SplitLayoutState>()(
   persist(
     (set) => ({
       layout: null,
+      columnOrder: null,
       openRouteInNewTab: false,
       visibleColumnCount: 1,
       maxColumns: MAX_COLUMNS,
@@ -122,6 +132,14 @@ export const useSplitLayoutStore = create<SplitLayoutState>()(
             ? state
             : { visibleColumnCount, maxColumns },
         ),
+      fitColumns: (visibleColumnCount) =>
+        set((state) => {
+          if (!state.layout) return state;
+          const next = fitColumnOrder(state.layout, state.columnOrder, visibleColumnCount);
+          return next.layout === state.layout && next.order === state.columnOrder
+            ? state
+            : { layout: next.layout, columnOrder: next.order };
+        }),
     }),
     {
       name: "t3code:split-layout:v1",
@@ -129,10 +147,11 @@ export const useSplitLayoutStore = create<SplitLayoutState>()(
       storage: createJSONStorage(() =>
         resolveStorage(typeof window !== "undefined" ? window.localStorage : undefined),
       ),
-      partialize: (state) => ({ layout: state.layout }),
+      partialize: (state) => ({ layout: state.layout, columnOrder: state.columnOrder }),
       merge: (persisted, current) => ({
         ...current,
         layout: sanitizeLayout(isRecord(persisted) ? persisted.layout : null),
+        columnOrder: sanitizeColumnOrder(isRecord(persisted) ? persisted.columnOrder : null),
       }),
     },
   ),

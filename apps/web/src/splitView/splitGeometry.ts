@@ -37,6 +37,38 @@ export function ensureActiveVisible(layout: SplitLayout, visibleCount: number): 
   return { ...unparkColumn(layout, column.id, visibleCount), activePaneId: layout.activePaneId };
 }
 
+/**
+ * Keeps the active pane visible and remembers the column order that cost. `order` is that
+ * remembered order: it comes back once it hides nothing on screen, and is dropped when columns
+ * are added or closed.
+ */
+export function fitColumnOrder(
+  layout: SplitLayout,
+  order: ReadonlyArray<string> | null,
+  visibleCount: number,
+): { layout: SplitLayout; order: ReadonlyArray<string> | null } {
+  let current = layout;
+  let remembered = order;
+  if (remembered) {
+    const byId = new Map(layout.columns.map((column) => [column.id, column]));
+    const natural = remembered.flatMap((id) => byId.get(id) ?? []);
+    if (natural.length !== layout.columns.length || remembered.length !== natural.length) {
+      remembered = null;
+    } else {
+      const shown = new Set(natural.slice(0, visibleCount).map((column) => column.id));
+      if (layout.columns.slice(0, visibleCount).every((column) => shown.has(column.id))) {
+        current = natural.every((column, index) => column === layout.columns[index])
+          ? layout
+          : { ...layout, columns: natural };
+        remembered = null;
+      }
+    }
+  }
+  const fitted = ensureActiveVisible(current, visibleCount);
+  if (fitted !== current) remembered ??= current.columns.map((column) => column.id);
+  return { layout: fitted, order: remembered };
+}
+
 export function visibleColumnShares(layout: SplitLayout, visibleCount: number): number[] {
   const visible = layout.columns.slice(0, visibleCount);
   const total = visible.reduce((sum, column) => sum + column.width, 0);

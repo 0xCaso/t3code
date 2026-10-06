@@ -5,6 +5,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   applyVisibleShares,
   ensureActiveVisible,
+  fitColumnOrder,
   maxColumnsForWidth,
   resizeShares,
   rightPanelPresentation,
@@ -62,6 +63,26 @@ describe("splitGeometry", () => {
     expect(firstKeys(next)).toEqual(["env:a", "env:c", "env:b"]);
     expect(next.activePaneId).toBe(layout.activePaneId);
     expect(ensureActiveVisible(layout, 3)).toBe(layout);
+  });
+
+  it("restores the column order once the window widens again", () => {
+    const layout = threeColumns(); // active pane is in column 3
+    const narrow = fitColumnOrder(layout, null, 2);
+    expect(firstKeys(narrow.layout)).toEqual(["env:a", "env:c", "env:b"]);
+    // Still too narrow: restoring would hide the active column.
+    expect(fitColumnOrder(narrow.layout, narrow.order, 2)).toEqual(narrow);
+    const wide = fitColumnOrder(narrow.layout, narrow.order, 3);
+    expect(firstKeys(wide.layout)).toEqual(["env:a", "env:b", "env:c"]);
+    expect(wide.order).toBeNull();
+  });
+
+  it("forgets the remembered order once columns are added or closed", () => {
+    const layout = threeColumns();
+    const narrow = fitColumnOrder(layout, null, 2);
+    const closed = { ...narrow.layout, columns: narrow.layout.columns.slice(0, 2) };
+    const next = fitColumnOrder(closed, narrow.order, 2);
+    expect(next.layout).toBe(closed);
+    expect(next.order).toBeNull();
   });
 
   it("rescales visible shares to fill the grid", () => {

@@ -13,7 +13,6 @@ import { ColumnDivider } from "./ColumnDivider";
 import { SplitDropOverlay } from "./SplitDropOverlay";
 import { SplitPane } from "./SplitPane";
 import {
-  ensureActiveVisible,
   maxColumnsForWidth,
   rightPanelPresentation,
   visibleColumnCount,
@@ -70,12 +69,14 @@ export function SplitViewRoot({ routeTarget }: { routeTarget: ThreadRouteTarget 
 
   const visibleCount = layout ? visibleColumnCount(layout, workspaceWidth) : 1;
   const maxColumns = maxColumnsForWidth(workspaceWidth);
+  const activePaneId = layout?.activePaneId;
+  // Also runs on activation: a pane activated from the sidebar or the parked chip may be parked.
   useLayoutEffect(() => {
     if (workspaceWidth <= 0) return;
     const state = useSplitLayoutStore.getState();
     state.setCapacity({ visibleColumnCount: visibleCount, maxColumns });
-    state.update((current) => ensureActiveVisible(current, visibleCount));
-  }, [maxColumns, visibleCount, workspaceWidth]);
+    state.fitColumns(visibleCount);
+  }, [activePaneId, maxColumns, visibleCount, workspaceWidth]);
 
   // Resizing replaces `columns` but keeps parked column objects. useShallow hands back the previous
   // array while its elements are unchanged: a new reference would re-render the chip pane's ChatView per frame.

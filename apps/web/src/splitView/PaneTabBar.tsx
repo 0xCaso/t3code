@@ -10,6 +10,7 @@ import { PanelTabCloseButton } from "../components/ui/panel-tab-close-button";
 import { useNewThreadHandler } from "../hooks/useHandleNewThread";
 import { useThreadShell } from "../state/entities";
 import {
+  activatePane,
   activateTab,
   closePane,
   closeTab,
@@ -19,7 +20,6 @@ import {
   type SplitColumn,
   type SplitPane,
 } from "./splitLayout";
-import { unparkColumn } from "./splitGeometry";
 import { beginSplitDrag, endSplitDrag, moveSplitDrag } from "./splitDrag";
 import { useSplitLayoutStore } from "./splitLayoutStore";
 import { startThreadInNewTab } from "./splitViewCommands";
@@ -134,8 +134,9 @@ function ParkedColumnItem(props: { column: SplitColumn }) {
   return (
     <MenuItem
       onClick={() => {
-        const { visibleColumnCount, update } = useSplitLayoutStore.getState();
-        update((layout) => unparkColumn(layout, column.id, visibleColumnCount));
+        const paneId = column.panes[0]?.id;
+        // SplitViewRoot brings the activated column on screen.
+        if (paneId) useSplitLayoutStore.getState().update((layout) => activatePane(layout, paneId));
       }}
     >
       <span className="min-w-0 truncate">{title}</span>
