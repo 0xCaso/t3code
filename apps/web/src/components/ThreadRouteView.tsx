@@ -1,6 +1,7 @@
 import { scopedThreadKey } from "@t3tools/client-runtime/environment";
 import type { ScopedThreadRef } from "@t3tools/contracts";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 import ChatView from "./ChatView";
 import { resolveDraftPromotionNavigationTarget, threadHasStarted } from "./ChatView.logic";
@@ -11,6 +12,8 @@ import {
   useBackgroundDraftSubmissionPending,
   useComposerDraftStore,
 } from "../composerDraftStore";
+import { isElectron } from "../env";
+import { cn } from "../lib/utils";
 import { useSidebarPendingFileDropStore } from "../sidebarPendingFileDropStore";
 import type { ChatViewPane } from "../splitView/types";
 import { useEnvironmentThreadRefs, useThreadRefs, useThreadShell } from "../state/entities";
@@ -194,7 +197,25 @@ export function ThreadTargetView({
     );
   }
 
+  if (view || !pane) return view;
   // A pane whose thread never loads (its environment is gone or unreachable) still needs its
-  // tab bar, or the persisted layout leaves a blank pane with no way to close it.
-  return view ?? pane?.renderTabBar(null) ?? null;
+  // tab bar, or the persisted layout leaves a blank pane with no way to close it. While active it
+  // also holds the header's place, so the tab bar does not jump and Electron keeps its drag region.
+  return (
+    <>
+      {pane.active && pane.slots.header
+        ? createPortal(
+            <header
+              aria-hidden
+              className={cn(
+                "h-[var(--workspace-topbar-height)] shrink-0 bg-background",
+                isElectron && "drag-region",
+              )}
+            />,
+            pane.slots.header,
+          )
+        : null}
+      {pane.renderTabBar(null)}
+    </>
+  );
 }
