@@ -4072,7 +4072,7 @@ export default function ChatView(props: ChatViewProps) {
     remoteOpenMode: remoteOpenState.mode,
   });
   useOpenFavoriteEditorShortcut({
-    enabled: showOpenInPicker,
+    enabled: showOpenInPicker && interactive,
     environmentId: activeThread?.environmentId ?? environmentId,
     keybindings,
     availableEditors,
