@@ -875,9 +875,12 @@ export function ThreadStatusLabel({
 export function ThreadRowLeadingStatus({
   thread,
   snapshot,
+  compact = false,
 }: {
   thread: SidebarThreadSummary;
   snapshot?: ThreadChangeRequestSnapshot | undefined;
+  /** One icon-sized glyph: the thread status dot, else the PR state. */
+  compact?: boolean;
 }) {
   const { leaseLiveStatus, rowRef } = useSidebarRowSubscriptionLease(false);
   // Observe the containing title even when this thread has no badge yet.
@@ -948,7 +951,7 @@ export function ThreadRowLeadingStatus({
         prStatus || threadStatus ? "inline-flex shrink-0 items-center gap-1.5" : "contents"
       }
     >
-      {prStatus && pr ? (
+      {prStatus && pr && !(compact && threadStatus) ? (
         <Tooltip>
           <TooltipTrigger
             render={
@@ -965,13 +968,13 @@ export function ThreadRowLeadingStatus({
           </TooltipPopup>
         </Tooltip>
       ) : null}
-      {pendingLink ? (
+      {pendingLink && !(compact && threadStatus) ? (
         <PullRequestGlyph.pullRequest
           className="size-3 text-muted-foreground"
           aria-label={`PR #${pendingLink.number}, status pending`}
         />
       ) : null}
-      {threadStatus ? <ThreadStatusLabel status={threadStatus} /> : null}
+      {threadStatus ? <ThreadStatusLabel status={threadStatus} compact={compact} /> : null}
     </span>
   );
 }
