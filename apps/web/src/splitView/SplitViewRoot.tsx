@@ -32,6 +32,10 @@ const NO_PARKED_COLUMNS: ReadonlyArray<SplitColumn> = [];
 
 const INSET_CLASS_NAME = "h-svh min-h-0 overflow-hidden overscroll-y-none md:h-dvh";
 
+/** A maximized right panel collapses every column, as it collapses the chat beside a single thread. */
+const COLUMNS_CLASS_NAME =
+  "flex min-h-0 min-w-0 flex-1 flex-col group-has-[>[data-split-right-panel-slot]>[data-preview-panel-maximized=true]]/workspace:w-0 group-has-[>[data-split-right-panel-slot]>[data-preview-panel-maximized=true]]/workspace:flex-none group-has-[>[data-split-right-panel-slot]>[data-preview-panel-maximized=true]]/workspace:overflow-hidden";
+
 export function SplitViewRoot({ routeTarget }: { routeTarget: ThreadRouteTarget }) {
   const navigate = useNavigate();
   const layout = useSplitLayoutStore((state) => state.layout);
@@ -97,8 +101,8 @@ export function SplitViewRoot({ routeTarget }: { routeTarget: ThreadRouteTarget 
 
   return (
     <SidebarInset className={INSET_CLASS_NAME}>
-      <div ref={workspaceRef} className="flex min-h-0 min-w-0 flex-1">
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div ref={workspaceRef} className="group/workspace flex min-h-0 min-w-0 flex-1">
+        <div className={COLUMNS_CLASS_NAME}>
           {chrome ? <div ref={setHeaderSlot} className="contents" /> : null}
           <div ref={gridRef} className="flex min-h-0 min-w-0 flex-1">
             {visibleColumns.map((column, columnIndex) => (
@@ -136,7 +140,9 @@ export function SplitViewRoot({ routeTarget }: { routeTarget: ThreadRouteTarget 
           </div>
           {chrome ? <div ref={setTerminalSlot} className="contents" /> : null}
         </div>
-        {chrome ? <div ref={setRightPanelSlot} className="contents" /> : null}
+        {chrome ? (
+          <div ref={setRightPanelSlot} className="contents" data-split-right-panel-slot />
+        ) : null}
       </div>
       <SplitDropOverlay />
     </SidebarInset>
