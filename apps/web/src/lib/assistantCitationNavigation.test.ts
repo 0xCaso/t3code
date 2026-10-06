@@ -9,7 +9,10 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   assistantCitationFromLocation,
+  assistantCitationHash,
   assistantCitationNavigation,
+  threadCitationActivation,
+  threadCitationHref,
 } from "./assistantCitationNavigation";
 
 const citation: AssistantCitation = {
@@ -78,5 +81,33 @@ describe("assistant citation navigation", () => {
     expect(
       assistantCitationFromLocation(`/a/b#assistant-citation=${"a".repeat(140_000)}`),
     ).toBeNull();
+  });
+
+  it("scopes a citation request to the thread it cites", () => {
+    const href = `/environment-one/thread-one#${assistantCitationHash(citation)}`;
+    const location = { href, state: { assistantCitationActivation: "click-1", __TSR_key: "k" } };
+
+    expect(threadCitationHref(href, "environment-one", "thread-one")).toBe(href);
+    expect(threadCitationActivation(location, "environment-one", "thread-one")).toBe("click-1");
+    expect(threadCitationHref(href, "environment-one", "thread-two")).toBeNull();
+    expect(threadCitationActivation(location, "environment-two", "thread-one")).toBeNull();
+    expect(threadCitationHref("/environment-one/thread-one", "environment-one", "thread-one")).toBe(
+      null,
+    );
+  });
+
+  it("falls back to the history key, then the href, when there is no explicit activation", () => {
+    const href = `/environment-one/thread-one#${assistantCitationHash(citation)}`;
+
+    expect(
+      threadCitationActivation(
+        { href, state: { __TSR_key: "k" } },
+        "environment-one",
+        "thread-one",
+      ),
+    ).toBe("k");
+    expect(threadCitationActivation({ href, state: {} }, "environment-one", "thread-one")).toBe(
+      href,
+    );
   });
 });

@@ -35,6 +35,31 @@ export function assistantCitationFromLocation(href: string) {
   }
 }
 
+/**
+ * The location's href when its citation points at this thread, else null. A primitive, so a
+ * router selector built on it re-renders only the thread the citation targets.
+ */
+export function threadCitationHref(href: string, environmentId: string, threadId: string) {
+  const citation = assistantCitationFromLocation(href);
+  return citation?.environmentId === environmentId && citation.threadId === threadId ? href : null;
+}
+
+/**
+ * Identifies one activation of this thread's citation (a re-click of the same link gets a new
+ * one), or null when the location cites nothing here.
+ */
+export function threadCitationActivation(
+  location: {
+    readonly href: string;
+    readonly state: { assistantCitationActivation?: string; __TSR_key?: string };
+  },
+  environmentId: string,
+  threadId: string,
+) {
+  if (threadCitationHref(location.href, environmentId, threadId) === null) return null;
+  return location.state.assistantCitationActivation ?? location.state.__TSR_key ?? location.href;
+}
+
 /** A fresh activation lets the same link reveal its source again after dismissal. */
 export function assistantCitationNavigation(citation: AssistantCitation) {
   return {
