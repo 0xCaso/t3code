@@ -25,7 +25,7 @@ import type { PaneTabBarControls } from "./types";
 
 export function PaneTabBar(props: {
   pane: SplitPane;
-  controls: PaneTabBarControls;
+  controls: PaneTabBarControls | null;
   parkedColumns: ReadonlyArray<SplitColumn>;
 }) {
   const { pane, controls } = props;
@@ -74,23 +74,25 @@ export function PaneTabBar(props: {
       >
         <PlusIcon />
       </Button>
-      <Button
-        variant="ghost"
-        size="icon-xs"
-        ref={(node) => {
-          controls.threadDetailsAnchorRef.current = node;
-        }}
-        aria-label="Thread details"
-        onClick={controls.toggleThreadDetails}
-      >
-        <EllipsisIcon />
-        {controls.threadDetailsAttention ? (
-          <span
-            className="absolute right-1 top-1 size-1.5 rounded-full bg-warning ring-2 ring-background"
-            aria-hidden="true"
-          />
-        ) : null}
-      </Button>
+      {controls ? (
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          ref={(node) => {
+            controls.threadDetailsAnchorRef.current = node;
+          }}
+          aria-label="Thread details"
+          onClick={controls.toggleThreadDetails}
+        >
+          <EllipsisIcon />
+          {controls.threadDetailsAttention ? (
+            <span
+              className="absolute right-1 top-1 size-1.5 rounded-full bg-warning ring-2 ring-background"
+              aria-hidden="true"
+            />
+          ) : null}
+        </Button>
+      ) : null}
       <Button
         variant="ghost"
         size="icon-xs"

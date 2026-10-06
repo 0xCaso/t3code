@@ -18,5 +18,6 @@ export interface ChatViewPane {
   readonly active: boolean;
   readonly slots: SplitViewSlots;
   readonly rightPanelPresentation: "inline" | "sheet";
-  readonly renderTabBar: (controls: PaneTabBarControls) => ReactNode;
+  /** `null` when there is no thread view to control (it is still loading or never will). */
+  readonly renderTabBar: (controls: PaneTabBarControls | null) => ReactNode;
 }

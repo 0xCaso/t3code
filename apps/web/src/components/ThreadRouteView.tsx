@@ -194,5 +194,7 @@ export function ThreadTargetView({
     );
   }
 
-  return view;
+  // A pane whose thread never loads (its environment is gone or unreachable) still needs its
+  // tab bar, or the persisted layout leaves a blank pane with no way to close it.
+  return view ?? pane?.renderTabBar(null) ?? null;
 }

@@ -69,7 +69,7 @@ export const SplitPane = memo(function SplitPane(props: {
   );
 
   const renderTabBar = useCallback(
-    (controls: PaneTabBarControls) => (
+    (controls: PaneTabBarControls | null) => (
       <PaneTabBar pane={pane} controls={controls} parkedColumns={parkedColumns} />
     ),
     [pane, parkedColumns],
