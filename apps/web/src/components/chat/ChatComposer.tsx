@@ -180,6 +180,7 @@ import {
   formatAttachmentUploadProgress,
 } from "../../lib/attachmentUploadState";
 import { isCommandPaletteOpen } from "../../commandPaletteBus";
+import { usePaneInteractive } from "../../splitView/paneInteractive";
 import { getTerminalFocusOwner } from "../../lib/terminalFocus";
 import type { AssistantCitationSourceAnchor } from "~/lib/assistantTextSelection";
 import { resolveShortcutCommand, shortcutLabelForCommand } from "../../keybindings";
@@ -2453,7 +2454,9 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
   const isRevertingCheckpointRef = useRef(isRevertingCheckpoint);
   isRevertingCheckpointRef.current = isRevertingCheckpoint;
 
+  const interactive = usePaneInteractive();
   useEffect(() => {
+    if (!interactive) return;
     const armPasteAsTextShortcut = () => {
       // Electron can deliver its native menu action just before the paste
       // event, while browsers normally deliver keydown first. A short deadline
@@ -2494,7 +2497,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       window.removeEventListener("keydown", onKeyDown, true);
       window.removeEventListener("blur", onBlur);
     };
-  }, []);
+  }, [interactive]);
 
   // ------------------------------------------------------------------
   // Derived: composer send state
@@ -5604,6 +5607,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
   }, [prompt]);
 
   useEffect(() => {
+    if (!interactive) return;
     const handler = (event: globalThis.KeyboardEvent) => {
       const command = resolveShortcutCommand(event, keybindings, {
         context: {
@@ -5632,6 +5636,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     window.addEventListener("keydown", handler, true);
     return () => window.removeEventListener("keydown", handler, true);
   }, [
+    interactive,
     activePendingProgress,
     isComposerApprovalState,
     isComposerModelPickerOpen,

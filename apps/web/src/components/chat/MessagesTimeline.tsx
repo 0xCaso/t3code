@@ -154,6 +154,7 @@ import type {
 } from "@t3tools/contracts";
 import { Button, InlineButton } from "../ui/button";
 import { MorphIcon } from "~/components/MorphIcon";
+import { usePaneInteractive } from "../../splitView/paneInteractive";
 import { useAssetUrlRefresh, useAssetUrls, useAssetUrlState } from "../../assets/assetUrls";
 import { MediaVideoPlayer } from "../media/MediaVideoPlayer";
 import { getVirtualizedScrollFadeClassName } from "../ui/scroll-area";
@@ -581,6 +582,9 @@ export const MessagesTimeline = memo(function MessagesTimeline({
   );
   const restoringThreadPosition = positionedThreadKey !== listIdentityKey;
   const prefersReducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
+  const interactive = usePaneInteractive();
+  const interactiveRef = useRef(interactive);
+  interactiveRef.current = interactive;
   const listIdentityRef = useRef(listIdentityKey);
   const previousLatestRunRef = useRef(latestRun);
   // The list stays mounted across thread switches. Its first end pins on the
@@ -836,6 +840,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
       onManualNavigation();
     };
     const onScrollKey = (event: globalThis.KeyboardEvent) => {
+      if (!interactiveRef.current) return;
       if (
         ["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "].includes(event.key) &&
         !(

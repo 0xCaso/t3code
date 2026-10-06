@@ -539,6 +539,7 @@ import {
 } from "./ChatView.logic";
 import { useLocalStorage } from "~/hooks/useLocalStorage";
 import { useComposerHandleContext } from "../composerHandleContext";
+import { usePaneInteractive } from "../splitView/paneInteractive";
 import {
   awaitAttachmentUploads,
   getUploadedAttachments,
@@ -1783,7 +1784,12 @@ export default function ChatView(props: ChatViewProps) {
   const composerFilesRef = useRef<ComposerFileAttachment[]>([]);
   const composerTerminalContextsRef = useRef<TerminalContextDraft[]>([]);
   const localComposerRef = useRef<ChatComposerHandle | null>(null);
-  const composerRef = useComposerHandleContext() ?? localComposerRef;
+  const interactive = usePaneInteractive();
+  const interactiveRef = useRef(interactive);
+  interactiveRef.current = interactive;
+  const sharedComposerRef = useComposerHandleContext();
+  // Palette and file browser write into the app-wide handle; only the active pane may own it.
+  const composerRef = (interactive ? sharedComposerRef : null) ?? localComposerRef;
   const branchToolbarRef = useRef<BranchToolbarHandle>(null);
   const pasteAsTextShortcutUntilRef = useRef(0);
   const [restingComposerControlsHost, setRestingComposerControlsHost] =
@@ -5997,13 +6003,12 @@ export default function ChatView(props: ChatViewProps) {
       },
     );
   }, []);
-  useEffect(
-    () =>
-      subscribePreviewAction((action) => {
-        if (action === "toggle-panel") togglePreviewPanel();
-      }),
-    [togglePreviewPanel],
-  );
+  useEffect(() => {
+    if (!interactive) return;
+    return subscribePreviewAction((action) => {
+      if (action === "toggle-panel") togglePreviewPanel();
+    });
+  }, [interactive, togglePreviewPanel]);
   const persistThreadSettingsForNextTurn = useCallback(
     async (input: {
       threadId: ThreadId;
@@ -6329,6 +6334,7 @@ export default function ChatView(props: ChatViewProps) {
         // the end on the next stream chunk. Clicking message text can leave
         // DOM focus on body, so these keys must also be heard at document.
         const handleKeyDown = (event: KeyboardEvent) => {
+          if (!interactiveRef.current) return;
           if (
             !(event.target instanceof Node) ||
             (!scrollNode.contains(event.target) &&
@@ -6575,6 +6581,7 @@ export default function ChatView(props: ChatViewProps) {
   }, [activeThreadKey]);
 
   useEffect(() => {
+    if (!interactive) return;
     if (!activeThread?.id || terminalUiState.terminalOpen) return;
     const frame = window.requestAnimationFrame(() => {
       focusComposer();
@@ -6582,7 +6589,7 @@ export default function ChatView(props: ChatViewProps) {
     return () => {
       window.cancelAnimationFrame(frame);
     };
-  }, [activeThread?.id, focusComposer, terminalUiState.terminalOpen]);
+  }, [activeThread?.id, focusComposer, interactive, terminalUiState.terminalOpen]);
 
   // Tabbing back into the app lands focus wherever it last was, often the right panel or the
   // body. Put it in the composer unless something that takes typing already holds it. The
@@ -6590,6 +6597,7 @@ export default function ChatView(props: ChatViewProps) {
   // terminal is a surface and is recognized by the predicate instead. Mobile is left alone so
   // returning to the app does not raise the keyboard.
   useEffect(() => {
+    if (!interactive) return;
     if (!activeThread?.id || terminalUiState.terminalOpen || isMobileViewport) return;
     let frame: number | null = null;
     const onWindowFocus = () => {
@@ -6609,7 +6617,13 @@ export default function ChatView(props: ChatViewProps) {
       window.removeEventListener("focus", onWindowFocus);
       if (frame !== null) window.cancelAnimationFrame(frame);
     };
-  }, [activeThread?.id, focusComposer, isMobileViewport, terminalUiState.terminalOpen]);
+  }, [
+    activeThread?.id,
+    focusComposer,
+    interactive,
+    isMobileViewport,
+    terminalUiState.terminalOpen,
+  ]);
 
   useEffect(() => {
     if (!activeThread?.id) return;
@@ -7717,6 +7731,7 @@ export default function ChatView(props: ChatViewProps) {
   );
 
   useEffect(() => {
+    if (!interactive) return;
     const handler = (event: globalThis.KeyboardEvent) => {
       if (preventRepeatedTerminalCloseShortcut(event, keybindings)) {
         event.stopPropagation();
@@ -7983,6 +7998,7 @@ export default function ChatView(props: ChatViewProps) {
     window.addEventListener("keydown", handler, true);
     return () => window.removeEventListener("keydown", handler, true);
   }, [
+    interactive,
     activeProject,
     activeRightPanelSurface,
     activeProjectScripts,
@@ -8030,6 +8046,7 @@ export default function ChatView(props: ChatViewProps) {
   // so a paste that follows has no editable target and would be dropped.
   // Route it to the composer like a typed key, which also expands it.
   useEffect(() => {
+    if (!interactive) return;
     const keyHandler = (event: KeyboardEvent) => {
       if (
         shouldRedirectInputToComposer(event) &&
@@ -8062,7 +8079,7 @@ export default function ChatView(props: ChatViewProps) {
       window.removeEventListener("keydown", keyHandler, true);
       window.removeEventListener("paste", handler, true);
     };
-  }, [activeThreadId, composerRef]);
+  }, [activeThreadId, composerRef, interactive]);
 
   const [pendingRevert, setPendingRevert] = useState<{
     turnCount: number;
