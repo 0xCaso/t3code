@@ -1,5 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
 import { Fragment, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 
 import { SidebarInset } from "../components/ui/sidebar";
 import { useElementWidth } from "../hooks/useElementWidth";
@@ -8,6 +9,7 @@ import {
   buildThreadRouteParams,
   type ThreadRouteTarget,
 } from "../threadRoutes";
+import { ColumnDivider } from "./ColumnDivider";
 import { SplitDropOverlay } from "./SplitDropOverlay";
 import { SplitPane } from "./SplitPane";
 import {
@@ -35,6 +37,8 @@ export function SplitViewRoot({ routeTarget }: { routeTarget: ThreadRouteTarget 
   const layout = useSplitLayoutStore((state) => state.layout);
   const [workspaceRef, measuredWidth] = useElementWidth<HTMLDivElement>();
   const workspaceWidth = measuredWidth ?? 0;
+  const [gridRef, measuredGridWidth] = useElementWidth<HTMLDivElement>();
+  const gridWidth = measuredGridWidth ?? 0;
   const [headerSlot, setHeaderSlot] = useState<HTMLDivElement | null>(null);
   const [terminalSlot, setTerminalSlot] = useState<HTMLDivElement | null>(null);
   const [rightPanelSlot, setRightPanelSlot] = useState<HTMLDivElement | null>(null);
@@ -69,10 +73,10 @@ export function SplitViewRoot({ routeTarget }: { routeTarget: ThreadRouteTarget 
     state.update((current) => ensureActiveVisible(current, visibleCount));
   }, [maxColumns, visibleCount, workspaceWidth]);
 
-  const columns = layout?.columns;
-  const parkedColumns = useMemo(
-    () => columns?.slice(visibleCount) ?? NO_PARKED_COLUMNS,
-    [columns, visibleCount],
+  // Resizing replaces `columns` but keeps parked column objects. useShallow hands back the previous
+  // array while its elements are unchanged: a new reference would re-render the chip pane's ChatView per frame.
+  const parkedColumns = useSplitLayoutStore(
+    useShallow((state) => state.layout?.columns.slice(visibleCount) ?? NO_PARKED_COLUMNS),
   );
   const slots = useMemo<SplitViewSlots>(
     () => ({ header: headerSlot, terminal: terminalSlot, rightPanel: rightPanelSlot }),
@@ -96,10 +100,12 @@ export function SplitViewRoot({ routeTarget }: { routeTarget: ThreadRouteTarget 
       <div ref={workspaceRef} className="flex min-h-0 min-w-0 flex-1">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           {chrome ? <div ref={setHeaderSlot} className="contents" /> : null}
-          <div className="flex min-h-0 min-w-0 flex-1">
+          <div ref={gridRef} className="flex min-h-0 min-w-0 flex-1">
             {visibleColumns.map((column, columnIndex) => (
               <Fragment key={column.id}>
-                {columnIndex > 0 ? <div aria-hidden className="w-px shrink-0 bg-border" /> : null}
+                {columnIndex > 0 ? (
+                  <ColumnDivider index={columnIndex - 1} gridWidthPx={gridWidth} />
+                ) : null}
                 <div
                   className="flex min-h-0 min-w-0 flex-col"
                   style={{ flexBasis: 0, flexGrow: shares[columnIndex] ?? 1 }}

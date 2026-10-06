@@ -4,6 +4,7 @@ import { useRef, type PointerEvent as ReactPointerEvent } from "react";
 
 import { ThreadRowLeadingStatus } from "../components/ThreadStatusIndicators";
 import { Button } from "../components/ui/button";
+import { Menu, MenuItem, MenuPopup, MenuTrigger } from "../components/ui/menu";
 import { PanelTabCloseButton } from "../components/ui/panel-tab-close-button";
 import { useNewThreadHandler } from "../hooks/useHandleNewThread";
 import { useThreadShell } from "../state/entities";
@@ -17,6 +18,7 @@ import {
   type SplitColumn,
   type SplitPane,
 } from "./splitLayout";
+import { unparkColumn } from "./splitGeometry";
 import { beginSplitDrag, endSplitDrag, moveSplitDrag } from "./splitDrag";
 import { useSplitLayoutStore } from "./splitLayoutStore";
 import type { PaneTabBarControls } from "./types";
@@ -62,7 +64,7 @@ export function PaneTabBar(props: {
           />
         ))}
       </div>
-      {/* Task 14: parked-columns chip goes here. */}
+      {props.parkedColumns.length > 0 ? <ParkedColumnsMenu columns={props.parkedColumns} /> : null}
       <Button
         variant="ghost"
         size="icon-xs"
@@ -98,6 +100,39 @@ export function PaneTabBar(props: {
         <XIcon />
       </Button>
     </div>
+  );
+}
+
+/** "+N" chip: columns that do not fit are parked; picking one brings it back into the last visible slot. */
+function ParkedColumnsMenu(props: { columns: ReadonlyArray<SplitColumn> }) {
+  return (
+    <Menu>
+      <MenuTrigger render={<Button variant="ghost" size="xs" aria-label="Show hidden columns" />}>
+        +{props.columns.length}
+      </MenuTrigger>
+      <MenuPopup align="end" side="bottom" sideOffset={6} className="max-w-56">
+        {props.columns.map((column) => (
+          <ParkedColumnItem key={column.id} column={column} />
+        ))}
+      </MenuPopup>
+    </Menu>
+  );
+}
+
+function ParkedColumnItem(props: { column: SplitColumn }) {
+  const { column } = props;
+  const tab = column.panes[0] ? paneActiveTab(column.panes[0]) : null;
+  const shell = useThreadShell(tab?.kind === "server" ? tab.threadRef : null);
+  const title = shell?.title.trim() || (tab?.kind === "draft" ? "New thread" : "Thread");
+  return (
+    <MenuItem
+      onClick={() => {
+        const { visibleColumnCount, update } = useSplitLayoutStore.getState();
+        update((layout) => unparkColumn(layout, column.id, visibleColumnCount));
+      }}
+    >
+      <span className="min-w-0 truncate">{title}</span>
+    </MenuItem>
   );
 }
 
