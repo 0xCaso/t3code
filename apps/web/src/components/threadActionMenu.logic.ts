@@ -7,6 +7,8 @@ import type { SnoozePreset } from "@t3tools/client-runtime/state/thread-settled"
  * remains data-driven.
  */
 export type ThreadActionMenuId =
+  | "open-in-new-tab"
+  | "open-in-new-column"
   | "new-thread-on-branch"
   | "filter-by-project"
   | "project-settings"
@@ -71,6 +73,8 @@ export function buildDraftActionMenuItems(options: {
 
 export interface ThreadActionMenuState {
   readonly branch: string | null;
+  /** The sidebar row menu opens threads into the split view; the chat header menu does not. */
+  readonly splitView: boolean;
   /**
    * Project scoping for the thread list. Null on surfaces with no scoped
    * list behind the menu (the chat header), where the item must not show.
@@ -108,7 +112,7 @@ export interface ThreadActionMenuState {
 export function buildThreadActionMenuItems(
   state: ThreadActionMenuState,
 ): ReadonlyArray<ContextMenuItem<ThreadActionMenuId>> {
-  return [
+  const items: ReadonlyArray<ContextMenuItem<ThreadActionMenuId>> = [
     ...(state.branch
       ? [
           {
@@ -234,5 +238,13 @@ export function buildThreadActionMenuItems(
       destructive: true,
       icon: "trash",
     },
+  ];
+  if (!state.splitView) return items;
+  const [first, ...rest] = items;
+  return [
+    { id: "open-in-new-tab", label: "Open in new tab" },
+    { id: "open-in-new-column", label: "Open in new column" },
+    ...(first ? [{ ...first, separatorBefore: true }] : []),
+    ...rest,
   ];
 }

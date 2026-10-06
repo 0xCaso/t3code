@@ -48,6 +48,7 @@ import {
   ChartNoAxesColumnIcon,
   CheckIcon,
   ChevronRightIcon,
+  Columns2Icon,
   CornerLeftUpIcon,
   FileSearchIcon,
   FolderGit2Icon,
@@ -59,6 +60,7 @@ import {
   MonitorIcon,
   MoonIcon,
   PaletteIcon,
+  PanelTopIcon,
   RotateCcwIcon,
   SettingsIcon,
   SquarePenIcon,
@@ -83,6 +85,9 @@ import { useAtomValue } from "@effect/atom-react";
 import { isDesktopLocalConnectionTarget } from "../connection/desktopLocal";
 import { useDesktopLocalBootstraps } from "../connection/useDesktopLocalBootstraps";
 import { useHandleNewThread } from "../hooks/useHandleNewThread";
+import { allPanes } from "../splitView/splitLayout";
+import { openThreadInSplit, useSplitLayoutStore } from "../splitView/splitLayoutStore";
+import { runSplitViewCommand, startThreadInNewTab } from "../splitView/splitViewCommands";
 import { useOpenPanelPullRequestUrl } from "../hooks/useOpenPanelPullRequestUrl";
 import { writeTextToClipboard } from "../hooks/useCopyToClipboard";
 import { useClientSettings } from "../hooks/useSettings";
@@ -216,7 +221,7 @@ import {
   buildSidebarProjectPickerEntries,
   buildSidebarProjectSnapshots,
 } from "../sidebarProjectGrouping";
-import type { Project } from "../types";
+import type { Project, SidebarThreadSummary } from "../types";
 import { PullRequestGlyph } from "~/components/pullRequest/pullRequestIcons";
 import { readPullRequestListPreferences } from "~/components/pullRequest/pullRequestListPreferences";
 
@@ -1393,8 +1398,8 @@ function OpenCommandPaletteDialog(props: {
     ],
   );
 
-  const allThreadItems = useMemo(
-    () =>
+  const buildThreadItems = useCallback(
+    (runThread: (thread: Pick<SidebarThreadSummary, "environmentId" | "id">) => Promise<void>) =>
       buildThreadActionItems({
         threads,
         ...(activeThreadId ? { activeThreadId } : {}),
@@ -1444,17 +1449,11 @@ function OpenCommandPaletteDialog(props: {
               }
             : undefined;
         },
-        runThread: async (thread) => {
-          await navigate({
-            to: "/$environmentId/$threadId",
-            params: buildThreadRouteParams(scopeThreadRef(thread.environmentId, thread.id)),
-          });
-        },
+        runThread,
       }),
     [
       activeThreadId,
       clientSettings.sidebarThreadSortOrder,
-      navigate,
       projectCwdById,
       projectByKey,
       projectEnvironmentLocationById,
@@ -1464,6 +1463,45 @@ function OpenCommandPaletteDialog(props: {
       threadSearch.query,
       threads,
     ],
+  );
+  const navigateToThread = useCallback(
+    async (thread: Pick<SidebarThreadSummary, "environmentId" | "id">) => {
+      await navigate({
+        to: "/$environmentId/$threadId",
+        params: buildThreadRouteParams(scopeThreadRef(thread.environmentId, thread.id)),
+      });
+    },
+    [navigate],
+  );
+  const allThreadItems = useMemo(
+    () => buildThreadItems(navigateToThread),
+    [buildThreadItems, navigateToThread],
+  );
+  // Primitive selectors: the palette must not re-render on every layout change.
+  const splitPaneCount = useSplitLayoutStore((state) =>
+    state.layout ? allPanes(state.layout).length : 0,
+  );
+  const splitThreadItemsFor = useCallback(
+    (where: "tab" | "column") =>
+      splitPaneCount === 0
+        ? []
+        : buildThreadItems(async (thread) => {
+            const result = openThreadInSplit(
+              scopeThreadRef(thread.environmentId, thread.id),
+              where,
+            );
+            if (result === "full") {
+              toastManager.add(stackedThreadToast({ type: "info", title: "Tab limit reached" }));
+              return;
+            }
+            await navigateToThread(thread);
+          }),
+    [buildThreadItems, navigateToThread, splitPaneCount],
+  );
+  const splitTabThreadItems = useMemo(() => splitThreadItemsFor("tab"), [splitThreadItemsFor]);
+  const splitColumnThreadItems = useMemo(
+    () => splitThreadItemsFor("column"),
+    [splitThreadItemsFor],
   );
   const recentThreadItems = allThreadItems.slice(0, RECENT_THREAD_LIMIT);
 
@@ -1917,6 +1955,59 @@ function OpenCommandPaletteDialog(props: {
       addonIcon: <SquarePenIcon className={ADDON_ICON_CLASS} />,
       groups: [{ value: "projects", label: "Projects", items: projectThreadItems }],
     });
+  }
+
+  if (splitPaneCount > 0 && (activeThread !== null || activeDraftThread != null)) {
+    actionItems.push(
+      {
+        kind: "action",
+        value: "action:split-new-tab",
+        searchTerms: ["split", "tab", "new", "pane"],
+        title: "New tab",
+        icon: <PanelTopIcon className={ITEM_ICON_CLASS} />,
+        shortcutCommand: "splitView.newTab",
+        run: async () => {
+          startThreadInNewTab(() =>
+            startNewThreadFromContext({
+              activeDraftThread,
+              activeThread: activeThread ?? undefined,
+              defaultProjectRef,
+              handleNewThread,
+            }),
+          );
+        },
+      },
+      {
+        kind: "action",
+        value: "action:split-close-pane",
+        searchTerms: ["split", "close", "pane", "tab"],
+        title: "Close pane",
+        disabled: splitPaneCount < 2,
+        icon: <PanelTopIcon className={ITEM_ICON_CLASS} />,
+        shortcutCommand: "splitView.closePane",
+        run: async () => {
+          runSplitViewCommand("splitView.closePane", { startNewTab: () => {} });
+        },
+      },
+      {
+        kind: "submenu",
+        value: "action:open-thread-in-new-tab",
+        searchTerms: ["split", "tab", "open", "thread"],
+        title: "Open thread in new tab...",
+        icon: <PanelTopIcon className={ITEM_ICON_CLASS} />,
+        addonIcon: <PanelTopIcon className={ADDON_ICON_CLASS} />,
+        groups: [{ value: "threads", label: "Threads", items: splitTabThreadItems }],
+      },
+      {
+        kind: "submenu",
+        value: "action:open-thread-in-new-column",
+        searchTerms: ["split", "column", "open", "thread", "side by side"],
+        title: "Open thread in new column...",
+        icon: <Columns2Icon className={ITEM_ICON_CLASS} />,
+        addonIcon: <Columns2Icon className={ADDON_ICON_CLASS} />,
+        groups: [{ value: "threads", label: "Threads", items: splitColumnThreadItems }],
+      },
+    );
   }
 
   if (scratchTargetEnvironmentId !== null) {

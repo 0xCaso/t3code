@@ -251,6 +251,7 @@ import {
   type ProviderInstanceEntry,
 } from "../providerInstances";
 import { useThreadRunningTerminalIds } from "../state/terminalSessions";
+import { openThreadInSplit } from "../splitView/splitLayoutStore";
 import { stackedThreadToast, toastManager } from "./ui/toast";
 import { Button, InlineButton } from "./ui/button";
 import {
@@ -1117,6 +1118,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
   providerEntryByInstanceId: ReadonlyMap<string, ProviderInstanceEntry>;
   timestampFormat: TimestampFormat;
   onThreadClick: (event: ReactMouseEvent, threadRef: ScopedThreadRef) => void;
+  onThreadAuxClick: (threadRef: ScopedThreadRef) => void;
   onThreadActivate: (threadRef: ScopedThreadRef) => void;
   onStartRename: (threadRef: ScopedThreadRef, title: string) => void;
   onRenameTitleChange: (title: string) => void;
@@ -1158,6 +1160,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
     onSnooze,
     onStartRename,
     onThreadActivate,
+    onThreadAuxClick,
     onThreadClick,
     onUnsettle,
     onUnsnooze,
@@ -1765,6 +1768,16 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
                 aria-busy={isRegeneratingTitle || undefined}
                 className={cn(rowSurfaceClassName, "flex h-9 items-center gap-2.5 px-2.5")}
                 onClick={handleClick}
+                onMouseDown={(event) => {
+                  // Middle button: no autoscroll cursor.
+                  if (event.button === 1) event.preventDefault();
+                }}
+                onAuxClick={(event) => {
+                  if (event.button !== 1) return;
+                  // Middle click on a link would open a browser tab or window.
+                  event.preventDefault();
+                  onThreadAuxClick(threadRef);
+                }}
                 onDoubleClick={handleDoubleClick}
                 onKeyDown={handleKeyDown}
                 onContextMenu={handleContextMenu}
@@ -1930,6 +1943,16 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
               aria-busy={isRegeneratingTitle || undefined}
               className={rowSurfaceClassName}
               onClick={handleClick}
+              onMouseDown={(event) => {
+                // Middle button: no autoscroll cursor.
+                if (event.button === 1) event.preventDefault();
+              }}
+              onAuxClick={(event) => {
+                if (event.button !== 1) return;
+                // Middle click on a link would open a browser tab or window.
+                event.preventDefault();
+                onThreadAuxClick(threadRef);
+              }}
               onDoubleClick={handleDoubleClick}
               onKeyDown={handleKeyDown}
               onContextMenu={handleContextMenu}
@@ -3213,6 +3236,22 @@ export default function Sidebar() {
     [updateThreadMetadata],
   );
 
+  const openThreadInSplitView = useCallback(
+    (threadRef: ScopedThreadRef, where: "tab" | "column") => {
+      if (openThreadInSplit(threadRef, where) === "full") {
+        toastManager.add(stackedThreadToast({ type: "info", title: "Tab limit reached" }));
+        return;
+      }
+      // Without a layout yet (no chat open) navigating is enough: it creates one.
+      navigateToThread(threadRef);
+    },
+    [navigateToThread],
+  );
+  const openThreadInNewTab = useCallback(
+    (threadRef: ScopedThreadRef) => openThreadInSplitView(threadRef, "tab"),
+    [openThreadInSplitView],
+  );
+
   const handleThreadClick = useCallback(
     (event: ReactMouseEvent, threadRef: ScopedThreadRef) => {
       if (isSidebarNestedLinkClick(event.target)) return;
@@ -4470,6 +4509,7 @@ export default function Sidebar() {
           api.contextMenu.show(
             buildThreadActionMenuItems({
               branch: thread.branch ?? null,
+              splitView: true,
               projectFilter: threadProjectGroup
                 ? {
                     label: threadProjectGroup.displayName,
@@ -4518,6 +4558,13 @@ export default function Sidebar() {
             return;
           case "project-settings":
             if (threadProjectGroup) openProjectSettings(threadProjectGroup);
+            return;
+          case "open-in-new-tab":
+          case "open-in-new-column":
+            openThreadInSplitView(
+              threadRef,
+              clicked.value === "open-in-new-tab" ? "tab" : "column",
+            );
             return;
           case "new-thread-on-branch": {
             // Explicit branch carry-over: reuse the thread's worktree when it
@@ -4697,6 +4744,7 @@ export default function Sidebar() {
       handleMultiSelectContextMenu,
       markThreadUnread,
       openProjectSettings,
+      openThreadInSplitView,
       projectScopeKey,
       projectByKey,
       serverConfigs,
@@ -5193,6 +5241,7 @@ export default function Sidebar() {
                             }
                             timestampFormat={timestampFormat}
                             onThreadClick={handleThreadClick}
+                            onThreadAuxClick={openThreadInNewTab}
                             onThreadActivate={navigateToThread}
                             onStartRename={startThreadRename}
                             onRenameTitleChange={setRenamingTitle}

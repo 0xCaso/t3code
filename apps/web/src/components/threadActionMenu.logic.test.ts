@@ -8,6 +8,7 @@ import {
 
 const baseState: ThreadActionMenuState = {
   branch: null,
+  splitView: false,
   projectFilter: null,
   isPinned: false,
   isSettled: false,
@@ -39,6 +40,18 @@ function allIds(state: ThreadActionMenuState): string[] {
 }
 
 describe("buildThreadActionMenuItems", () => {
+  it("offers split view entries first when the surface supports them", () => {
+    const items = buildThreadActionMenuItems({ ...baseState, splitView: true });
+    expect(items.slice(0, 2).map((item) => item.id)).toEqual([
+      "open-in-new-tab",
+      "open-in-new-column",
+    ]);
+    expect(items[2]?.separatorBefore).toBe(true);
+    expect(
+      buildThreadActionMenuItems({ ...baseState, splitView: false }).map((item) => item.id),
+    ).not.toContain("open-in-new-tab");
+  });
+
   it("hides lifecycle items when the environment lacks the capabilities", () => {
     expect(
       ids({

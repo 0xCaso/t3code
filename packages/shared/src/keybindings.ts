@@ -7,6 +7,7 @@ import {
   MODEL_PICKER_JUMP_KEYBINDING_COMMANDS,
   type ResolvedKeybindingRule,
   type ResolvedKeybindingsConfig,
+  SPLIT_VIEW_FOCUS_PANE_KEYBINDING_COMMANDS,
   THREAD_JUMP_KEYBINDING_COMMANDS,
 } from "@t3tools/contracts";
 
@@ -84,6 +85,22 @@ export const DEFAULT_KEYBINDINGS: ReadonlyArray<KeybindingRule> = [
   { key: "mod+shift+s", command: "thread.settle", when: "!terminalFocus" },
   { key: "mod+shift+p", command: "thread.pin", when: "!terminalFocus" },
   { key: "mod+z", command: "thread.undo", when: "!terminalFocus && !editableFocus" },
+  // Desktop only: the browser owns mod+t, mod+shift+w and mod+alt+arrows.
+  { key: "mod+t", command: "splitView.newTab", when: "isDesktop && !terminalFocus" },
+  { key: "mod+shift+w", command: "splitView.closePane", when: "isDesktop && !terminalFocus" },
+  { key: "mod+alt+arrowleft", command: "splitView.focusLeft", when: "isDesktop && !terminalFocus" },
+  {
+    key: "mod+alt+arrowright",
+    command: "splitView.focusRight",
+    when: "isDesktop && !terminalFocus",
+  },
+  { key: "mod+alt+arrowup", command: "splitView.focusUp", when: "isDesktop && !terminalFocus" },
+  { key: "mod+alt+arrowdown", command: "splitView.focusDown", when: "isDesktop && !terminalFocus" },
+  ...SPLIT_VIEW_FOCUS_PANE_KEYBINDING_COMMANDS.map((command, index) => ({
+    key: `mod+alt+${index + 1}`,
+    command,
+    when: "isDesktop && !terminalFocus",
+  })),
   ...THREAD_JUMP_KEYBINDING_COMMANDS.map((command, index) => ({
     key: `mod+${index + 1}`,
     command,

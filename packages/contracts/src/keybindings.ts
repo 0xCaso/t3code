@@ -56,6 +56,17 @@ const MODEL_PICKER_KEYBINDING_COMMANDS = [
 ] as const;
 export type ModelPickerKeybindingCommand = (typeof MODEL_PICKER_KEYBINDING_COMMANDS)[number];
 
+export const SPLIT_VIEW_FOCUS_PANE_KEYBINDING_COMMANDS = [
+  "splitView.focusPane.1",
+  "splitView.focusPane.2",
+  "splitView.focusPane.3",
+  "splitView.focusPane.4",
+  "splitView.focusPane.5",
+  "splitView.focusPane.6",
+  "splitView.focusPane.7",
+  "splitView.focusPane.8",
+] as const;
+
 export const STATIC_KEYBINDING_COMMANDS = [
   "sidebar.toggle",
   "navigation.back",
@@ -106,6 +117,13 @@ export const STATIC_KEYBINDING_COMMANDS = [
   "usage.period.week",
   "usage.period.month",
   "usage.period.quarter",
+  "splitView.newTab",
+  "splitView.closePane",
+  "splitView.focusLeft",
+  "splitView.focusRight",
+  "splitView.focusUp",
+  "splitView.focusDown",
+  ...SPLIT_VIEW_FOCUS_PANE_KEYBINDING_COMMANDS,
   ...MODEL_PICKER_KEYBINDING_COMMANDS,
   ...THREAD_KEYBINDING_COMMANDS,
 ] as const;

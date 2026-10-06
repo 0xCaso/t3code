@@ -1,9 +1,10 @@
 import { Outlet, createFileRoute, redirect, useParams } from "@tanstack/react-router";
 import { useAtomValue } from "@effect/atom-react";
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 
 import { isCommandPaletteOpen } from "../commandPaletteBus";
 import { SplitViewRoot } from "../splitView/SplitViewRoot";
+import { runSplitViewCommand, startThreadInNewTab } from "../splitView/splitViewCommands";
 import { resolveThreadRouteTarget } from "../threadRoutes";
 import { useClientSettings, useLegacySidebarEnabled } from "../hooks/useSettings";
 import { openCommandPalette } from "../commandPaletteBus";
@@ -62,6 +63,19 @@ function ChatRouteGlobalShortcuts() {
       ? selectActiveRightPanel(state.byThreadKey, routeThreadRef) === "preview"
       : false,
   );
+  const startNewTab = useCallback(
+    () =>
+      startThreadInNewTab(() =>
+        startNewThreadFromContext({
+          activeDraftThread,
+          activeThread: activeThread ?? undefined,
+          defaultProjectRef,
+          handleNewThread,
+        }),
+      ),
+    [activeDraftThread, activeThread, defaultProjectRef, handleNewThread],
+  );
+  const inChat = routeThreadRef !== null || activeDraftThread != null;
   useEffect(() => {
     const onWindowKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
@@ -86,6 +100,13 @@ function ChatRouteGlobalShortcuts() {
           event.preventDefault();
           event.stopPropagation();
         }
+        return;
+      }
+
+      if (command?.startsWith("splitView.") && inChat) {
+        event.preventDefault();
+        event.stopPropagation();
+        runSplitViewCommand(command, { startNewTab });
         return;
       }
 
@@ -190,6 +211,7 @@ function ChatRouteGlobalShortcuts() {
     activeThread,
     clearSelection,
     handleNewThread,
+    inChat,
     keybindings,
     defaultProjectRef,
     previewOpen,
@@ -198,6 +220,7 @@ function ChatRouteGlobalShortcuts() {
     routeThreadRef,
     scratchEnvironmentId,
     selectedThreadKeysSize,
+    startNewTab,
     startScratchThread,
     legacySidebarEnabled,
     terminalOpen,
