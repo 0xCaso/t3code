@@ -11045,9 +11045,9 @@ export default function ChatView(props: ChatViewProps) {
       <div
         className={cn(
           "flex min-h-0 min-w-0 flex-col overflow-x-hidden",
-          rightPanelMaximized ? "w-0 flex-none" : "flex-1",
+          rightPanelMaximized && ownsWindowChrome ? "w-0 flex-none" : "flex-1",
         )}
-        data-chat-column-maximized-away={rightPanelMaximized ? "true" : "false"}
+        data-chat-column-maximized-away={rightPanelMaximized && ownsWindowChrome ? "true" : "false"}
       >
         {pane
           ? pane.renderTabBar({
