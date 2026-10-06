@@ -113,7 +113,11 @@ function EnvironmentNotifications({
     (settings) => settings.inAppNotificationsEnabled,
   );
   const navigate = useNavigate();
-  const { environmentId: activeEnvironmentId, threadId: activeThreadId } = useParams({
+  const {
+    environmentId: activeEnvironmentId,
+    threadId: activeThreadId,
+    draftId: activeDraftId,
+  } = useParams({
     strict: false,
   });
   const previous = useRef(new Map<ThreadId, NotificationState>());
@@ -176,9 +180,9 @@ function EnvironmentNotifications({
         document.visibilityState === "visible" &&
         document.hasFocus() &&
         (activeEnvironmentId !== environmentId || activeThreadId !== thread.id) &&
-        // In a chat route the split view is on screen; any visible pane counts as seen.
+        // In a chat route (thread or draft) the split view is on screen; any visible pane counts as seen.
         !(
-          activeThreadId !== undefined &&
+          (activeThreadId !== undefined || activeDraftId !== undefined) &&
           isThreadVisibleInSplit(scopeThreadRef(environmentId, thread.id))
         )
       ) {
@@ -242,6 +246,7 @@ function EnvironmentNotifications({
   }, [
     activeEnvironmentId,
     activeThreadId,
+    activeDraftId,
     environmentId,
     inAppNotificationsEnabled,
     mode,
