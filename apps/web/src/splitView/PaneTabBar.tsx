@@ -2,6 +2,7 @@ import { scopeProjectRef } from "@t3tools/client-runtime/environment";
 import { EllipsisIcon, PlusIcon, XIcon } from "lucide-react";
 import { useRef, type PointerEvent as ReactPointerEvent } from "react";
 
+import { useComposerDraftStore } from "../composerDraftStore";
 import { ThreadRowLeadingStatus } from "../components/ThreadStatusIndicators";
 import { Button } from "../components/ui/button";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "../components/ui/menu";
@@ -21,6 +22,7 @@ import {
 import { unparkColumn } from "./splitGeometry";
 import { beginSplitDrag, endSplitDrag, moveSplitDrag } from "./splitDrag";
 import { useSplitLayoutStore } from "./splitLayoutStore";
+import { startThreadInNewTab } from "./splitViewCommands";
 import type { PaneTabBarControls } from "./types";
 
 export function PaneTabBar(props: {
@@ -33,13 +35,16 @@ export function PaneTabBar(props: {
   const handleNewThread = useNewThreadHandler();
   const active = paneActiveTab(pane);
   const activeShell = useThreadShell(active.kind === "server" ? active.threadRef : null);
+  const activeDraft = useComposerDraftStore((store) =>
+    active.kind === "draft" ? store.getDraftSession(active.draftId) : null,
+  );
+  // The new tab joins the project of the tab in front, saved thread or draft alike.
+  const projectOwner = activeShell ?? activeDraft;
 
   const newTab = () => {
-    if (!activeShell) return;
-    useSplitLayoutStore.getState().setOpenRouteInNewTab(true);
-    void handleNewThread(scopeProjectRef(activeShell.environmentId, activeShell.projectId)).finally(
-      () => useSplitLayoutStore.getState().setOpenRouteInNewTab(false),
-    );
+    if (!projectOwner) return;
+    const projectRef = scopeProjectRef(projectOwner.environmentId, projectOwner.projectId);
+    startThreadInNewTab(() => handleNewThread(projectRef));
   };
 
   return (
@@ -69,7 +74,7 @@ export function PaneTabBar(props: {
         variant="ghost"
         size="icon-xs"
         aria-label="New tab"
-        disabled={!activeShell}
+        disabled={!projectOwner}
         onClick={newTab}
       >
         <PlusIcon />
