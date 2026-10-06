@@ -37,7 +37,7 @@ interface VersionMismatchIssue {
 
 export interface ThreadDetailsPanelProps extends Pick<
   ComponentProps<typeof ThreadDetailsCard>,
-  "anchor" | "handle" | "onPresentationChange"
+  "anchor" | "handle" | "onPresentationChange" | "keepChatCentered"
 > {
   forceNewWorktree?: boolean;
   environmentId: EnvironmentId;
@@ -119,6 +119,7 @@ export function ThreadDetailsPanel(props: ThreadDetailsPanelProps) {
       anchor={props.anchor}
       handle={props.handle}
       onPresentationChange={props.onPresentationChange}
+      {...(props.keepChatCentered ? { keepChatCentered: true } : {})}
     >
       {(density) => (
         <>

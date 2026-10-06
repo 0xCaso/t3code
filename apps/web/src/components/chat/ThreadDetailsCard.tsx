@@ -17,12 +17,14 @@ export function ThreadDetailsCard({
   anchor,
   handle,
   onPresentationChange,
+  keepChatCentered = false,
   children,
 }: {
   threadRef: ScopedThreadRef;
   anchor: RefObject<Element | null>;
   handle: ReturnType<typeof PopoverCreateHandle>;
   onPresentationChange: (presentation: ThreadPanelPresentation) => void;
+  keepChatCentered?: boolean;
   children: (density: "full" | "compact" | "essential") => ReactNode;
 }) {
   const canvas = useChatCanvas();
@@ -31,6 +33,7 @@ export function ThreadDetailsCard({
         container: canvas.container,
         lane: canvas.lane,
         frame: null,
+        keepChatCentered,
       })
     : null;
   const placement = canvas
@@ -39,6 +42,7 @@ export function ThreadDetailsCard({
         lane: canvas.lane,
         frame: canvas.layout.frame,
         overlapsDetailsCard: canvas.layout.overlapsDetailsCard,
+        keepChatCentered,
       })
     : null;
   const mode = placement ? "inline" : "popover";

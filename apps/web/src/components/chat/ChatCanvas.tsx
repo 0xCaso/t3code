@@ -99,7 +99,11 @@ export function ChatCanvas({
     const container = { width: measurements.width, height: measurements.height };
     return {
       container,
-      lane: { padding: measurements.padding, minChatWidth: measurements.minChatWidth },
+      lane: {
+        padding: measurements.padding,
+        minChatWidth: measurements.minChatWidth,
+        maxChatWidth: measurements.maxChatWidth,
+      },
       layout: resolveChatCanvasLayout({ ...measurements, container, preview, detailsCard }),
       previewKey: preview?.key ?? null,
       reportPreview,

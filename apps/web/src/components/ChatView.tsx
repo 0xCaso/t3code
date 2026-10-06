@@ -10853,6 +10853,7 @@ export default function ChatView(props: ChatViewProps) {
     anchor: threadPanelPopoverAnchorRef,
     handle: threadPanelPopoverHandle,
     onPresentationChange: setThreadPanelPresentation,
+    keepChatCentered: pane !== undefined,
     forceNewWorktree: multipleModelSelections !== null,
     environmentId: activeThread.environmentId,
     threadId: activeThread.id,

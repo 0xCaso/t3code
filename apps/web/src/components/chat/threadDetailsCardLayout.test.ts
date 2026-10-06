@@ -26,6 +26,17 @@ describe("workspace card", () => {
     expect(resolve(984, 900)).toMatchObject({ x: 692 });
     expect(resolve(983, 900)).toBeNull();
   });
+  it("pins beside a centered chat only, when chat must not move", () => {
+    const centered = (width: number) =>
+      resolveThreadDetailsCardLayout({
+        container: { width, height: 900 },
+        lane: { ...lane, maxChatWidth: 768 },
+        frame: null,
+        keepChatCentered: true,
+      });
+    expect(centered(1416)).toMatchObject({ x: 1124 });
+    expect(centered(1415)).toBeNull();
+  });
   it("keeps the card at the top right while the preview is freely dragged vertically", () => {
     for (const y of [12, 170, 250, 400, 648]) {
       expect(resolve(1600, 900, y)).toEqual({ x: 1308, y: 12, width: 280, height: 876 });

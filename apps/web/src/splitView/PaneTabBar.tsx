@@ -50,6 +50,10 @@ export function PaneTabBar(props: {
   return (
     <div
       data-split-tabbar
+      // The thread details popover anchors to the whole bar: it takes the anchor's width.
+      ref={(node) => {
+        if (controls) controls.threadDetailsAnchorRef.current = node;
+      }}
       className="flex h-8 min-h-8 shrink-0 items-center gap-1 border-b border-border px-1"
     >
       <div role="tablist" className="flex min-w-0 flex-1 items-center gap-0.5">
@@ -83,9 +87,6 @@ export function PaneTabBar(props: {
         <Button
           variant="ghost"
           size="icon-xs"
-          ref={(node) => {
-            controls.threadDetailsAnchorRef.current = node;
-          }}
           aria-label="Thread details"
           onClick={controls.toggleThreadDetails}
         >
@@ -221,7 +222,7 @@ function PaneTabButton(props: {
       className="group/tab flex h-6 max-w-48 min-w-0 cursor-default items-center gap-1.5 rounded-sm px-2 text-xs aria-selected:bg-muted"
     >
       <PanelTabCloseButton label="Close tab" onClick={props.onClose}>
-        {shell ? <ThreadRowLeadingStatus thread={shell} /> : null}
+        {shell ? <ThreadRowLeadingStatus thread={shell} compact /> : null}
       </PanelTabCloseButton>
       <span className="truncate">{title}</span>
     </div>
