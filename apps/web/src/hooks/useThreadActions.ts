@@ -4,6 +4,7 @@ import {
   scopeThreadRef,
   scopedThreadKey,
 } from "@t3tools/client-runtime/environment";
+import { closeThreadInSplitLayout } from "../splitView/splitLayoutStore";
 import { settlePromise, squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
 import { canSnooze, threadWokeAt } from "@t3tools/client-runtime/state/thread-settled";
 import { threadRuntimeCanArchive } from "@t3tools/client-runtime/state/models";
@@ -375,6 +376,7 @@ export function useThreadActions() {
         action.finish();
         return archiveResult;
       }
+      const closedInSplit = closeThreadInSplitLayout(threadRef);
       const wokeAt = threadWokeAt(thread, { now: new Date().toISOString() });
       if (wokeAt !== null) {
         markThreadVisited(scopedThreadKey(threadRef), wokeAt);
@@ -385,11 +387,12 @@ export function useThreadActions() {
         action: "Archived",
         claim: action,
         // Undo also brings the reader back when archiving moved them to a draft.
-        undo: () => unarchiveThread(threadRef, { navigate: shouldNavigateToDraft }),
+        undo: () =>
+          unarchiveThread(threadRef, { navigate: shouldNavigateToDraft && !closedInSplit }),
         failureTitle: "Failed to undo archive",
       });
 
-      if (shouldNavigateToDraft) {
+      if (shouldNavigateToDraft && !closedInSplit) {
         const navigationResult = await settlePromise(() =>
           handleNewThreadRef.current(scopeProjectRef(thread.environmentId, thread.projectId)),
         );
@@ -525,7 +528,9 @@ export function useThreadActions() {
       );
       clearTerminalUiState(threadRef);
 
-      if (shouldNavigateToFallback) {
+      const closedInSplit = closeThreadInSplitLayout(threadRef);
+
+      if (shouldNavigateToFallback && !closedInSplit) {
         const fallbackThread = fallbackThreadId
           ? readThreadShell(scopeThreadRef(threadRef.environmentId, fallbackThreadId))
           : null;
