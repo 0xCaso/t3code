@@ -89,6 +89,8 @@ interface RightPanelTabsProps {
   defaultWidth?: number;
   inlineSize?: PreviewPanelInlineSize;
   layoutControls?: ReactNode;
+  /** Split view only: names the thread these surfaces belong to, under the tab row. */
+  ownerLabel?: string | null;
   surfaces: readonly RightPanelSurface[];
   /** Fallback environment for surfaces that do not carry their own. */
   environmentId: EnvironmentId | null;
@@ -1359,6 +1361,14 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
           />
         ) : null}
       </div>
+      {props.ownerLabel ? (
+        <div
+          className="flex h-6 shrink-0 items-center border-b border-border px-3 text-xs text-muted-foreground"
+          data-right-panel-owner
+        >
+          <span className="truncate">{props.ownerLabel}</span>
+        </div>
+      ) : null}
       <div className="flex min-h-0 flex-1 flex-col" data-right-panel-surface-content>
         {props.activeSurfaceId === null ? (
           <RightPanelEmptyState

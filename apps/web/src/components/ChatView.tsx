@@ -10984,10 +10984,13 @@ export default function ChatView(props: ChatViewProps) {
       ))}
     </>
   );
+  // One right panel serves the whole split view; say whose surfaces it shows.
+  const rightPanelOwnerLabel = pane ? activeThread?.title.trim() || "New thread" : null;
   const inlineRightPanel =
     rightPanelPresent && !shouldUsePlanSidebarSheet && activeThreadRef ? (
       <RightPanelTabs
         mode="inline"
+        ownerLabel={rightPanelOwnerLabel}
         open={rightPanelOpen}
         maximized={rightPanelMaximized}
         inlineSize={previewPanelInlineSize}
@@ -11653,6 +11656,7 @@ export default function ChatView(props: ChatViewProps) {
         >
           <RightPanelTabs
             mode="sheet"
+            ownerLabel={rightPanelOwnerLabel}
             inlineSize={previewPanelInlineSize}
             // Same effective inset as the closed-state titlebar controls
             // (pr-3 in the tab bar plus this pixel equals the absolute
