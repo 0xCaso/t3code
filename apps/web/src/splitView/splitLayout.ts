@@ -333,6 +333,7 @@ export function moveTab(
       activePaneId: from.paneId,
     };
   }
+  if (target.kind === "replace" && target.paneId === from.paneId) return layout;
   if (target.paneId === from.paneId && source.pane.tabs.length === 1) return layout;
   const without = closeTab(layout, from.paneId, from.index);
   if (!without || !findPane(without, target.paneId)) return layout;

@@ -37,7 +37,9 @@ export type DropPreview =
     }
   | { readonly kind: "reject"; readonly label: "Tab limit reached" }
   /** A sidebar thread over a composer: the existing "add as context" drop takes it. */
-  | { readonly kind: "context" };
+  | { readonly kind: "context" }
+  /** No overlay; the drop does nothing. */
+  | { readonly kind: "none" };
 
 function contains(rect: Rect, point: { x: number; y: number }): boolean {
   return (
@@ -105,14 +107,23 @@ export function resolveDropPreview(input: {
   switch (zone.kind) {
     case "tabs":
       return asTab();
-    case "replace":
+    case "replace": {
+      // Dragging a tab onto its own pane's body is a no-op: prevents data loss.
+      if (source.kind === "tab" && source.paneId === paneId) {
+        return { kind: "none" };
+      }
       return {
         kind: "accept",
         target: { kind: "replace", paneId },
         label: "Open here",
         highlight: "pane",
       };
+    }
     case "edge": {
+      // Moving a lone tab to an edge of its own pane is a no-op.
+      if (source.kind === "tab" && source.paneId === paneId && position.pane.tabs.length === 1) {
+        return { kind: "none" };
+      }
       const horizontal = zone.side === "left" || zone.side === "right";
       const column = layout.columns[position.columnIndex];
       const full = horizontal

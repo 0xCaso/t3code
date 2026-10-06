@@ -157,6 +157,16 @@ describe("splitLayout", () => {
     );
   });
 
+  it("moving a tab to replace on its own pane is a no-op", () => {
+    let layout = createLayout(tab("a"));
+    layout = must(openTab(layout, layout.activePaneId, tab("b")));
+    layout = must(openTab(layout, layout.activePaneId, tab("c")));
+    const paneId = layout.activePaneId;
+    const unchanged = moveTab(layout, { paneId, index: 1 }, { kind: "replace", paneId }, 4);
+    expect(unchanged).toBe(layout);
+    expect(keysOf(unchanged)).toEqual([[["env:a", "env:b", "env:c"]]]);
+  });
+
   it("moves focus to neighbours and stops at the edges", () => {
     const base = createLayout(tab("a"));
     const split = must(openBeside(base, base.activePaneId, "right", tab("b"), 4));

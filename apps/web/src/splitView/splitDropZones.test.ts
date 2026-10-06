@@ -133,4 +133,34 @@ describe("resolveDropPreview", () => {
       }),
     ).toMatchObject({ label: "New tab" });
   });
+
+  it("same-pane replace with 3 tabs returns none", () => {
+    let full: SplitLayout = single;
+    for (const id of ["b", "c"]) full = openTab(full, paneId, tab(id))!;
+    const source = { kind: "tab", paneId, index: 1 } as const;
+    expect(
+      resolveDropPreview({
+        layout: full,
+        paneId,
+        zone: { kind: "replace" },
+        tabIndex: 0,
+        maxColumns: 4,
+        source,
+      }),
+    ).toEqual({ kind: "none" });
+  });
+
+  it("same-pane edge with 1 tab returns none", () => {
+    const source = { kind: "tab", paneId, index: 0 } as const;
+    expect(
+      resolveDropPreview({
+        layout: single,
+        paneId,
+        zone: { kind: "edge", side: "right" },
+        tabIndex: 0,
+        maxColumns: 4,
+        source,
+      }),
+    ).toEqual({ kind: "none" });
+  });
 });
