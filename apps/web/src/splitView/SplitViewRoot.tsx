@@ -91,7 +91,7 @@ export function SplitViewRoot({ routeTarget }: { routeTarget: ThreadRouteTarget 
   if (!layout) return <SidebarInset className={INSET_CLASS_NAME} />;
 
   const chrome = hasPaneChrome(layout);
-  const showActiveBorder = allPanes(layout).length > 1;
+  const dimInactive = allPanes(layout).length > 1;
   const visibleColumns = layout.columns.slice(0, visibleCount);
   const shares = visibleColumnShares(layout, visibleCount);
   const presentation = rightPanelPresentation({
@@ -124,7 +124,7 @@ export function SplitViewRoot({ routeTarget }: { routeTarget: ThreadRouteTarget 
                         pane={pane}
                         active={pane.id === layout.activePaneId}
                         chrome={chrome}
-                        showActiveBorder={showActiveBorder}
+                        dimInactive={dimInactive}
                         slots={slots}
                         rightPanelPresentation={presentation}
                         parkedColumns={

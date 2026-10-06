@@ -2,6 +2,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { memo, useCallback, useMemo } from "react";
 
 import { ThreadTargetView, type ThreadTargetNavigation } from "../components/ThreadRouteView";
+import { cn } from "../lib/utils";
 import { buildThreadRouteParams } from "../threadRoutes";
 import { PaneTabBar } from "./PaneTabBar";
 import { PaneInteractiveContext, setPaneActivatedByKeyboard } from "./paneInteractive";
@@ -25,7 +26,8 @@ export const SplitPane = memo(function SplitPane(props: {
   pane: SplitPaneModel;
   active: boolean;
   chrome: boolean;
-  showActiveBorder: boolean;
+  /** Fades the pane while another one is active, so the active pane reads at a glance. */
+  dimInactive: boolean;
   slots: SplitViewSlots;
   rightPanelPresentation: "inline" | "sheet";
   parkedColumns: ReadonlyArray<SplitColumn>;
@@ -82,7 +84,10 @@ export const SplitPane = memo(function SplitPane(props: {
   return (
     <PaneInteractiveContext value={!chrome || active}>
       <div
-        className="relative flex min-h-0 min-w-0 flex-1 flex-col"
+        className={cn(
+          "relative flex min-h-0 min-w-0 flex-1 flex-col transition-opacity duration-150",
+          props.dimInactive && !active && "opacity-75",
+        )}
         data-split-pane={pane.id}
         onPointerDownCapture={activateByPointer}
         onFocusCapture={activate}
@@ -92,12 +97,6 @@ export const SplitPane = memo(function SplitPane(props: {
           onNavigate={onNavigate}
           {...(chrome ? { pane: chromeProps } : {})}
         />
-        {props.showActiveBorder && active ? (
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 z-40 outline-2 -outline-offset-2 outline-primary"
-          />
-        ) : null}
       </div>
     </PaneInteractiveContext>
   );
