@@ -4,6 +4,7 @@ Split view keeps several threads on screen in one window: up to four columns, tw
 
 ## Open a thread beside another
 
+- To start a new thread on the right, click the split button at the top right of the thread or press `mod+\`. This works in the browser too.
 - Right-click a thread in the sidebar and choose **Open in new column** or **Open in new tab**. Middle-click opens it in a new tab.
 - Drag a thread from the sidebar onto a pane. The highlight shows what the drop does: **Open here** replaces the pane's tab, the left and right edges add a column, the top and bottom edges add a row, and the tab bar adds a tab. Dropping onto the message box still adds the thread as context.
 - Drag a tab to reorder it or move it to another pane.
@@ -19,6 +20,7 @@ A new column needs at least 400 px for every column. When the window gets narrow
 | Shortcut                  | Action                        |
 | ------------------------- | ----------------------------- |
 | `mod+T`                   | New tab in the active pane    |
+| `mod+\`                   | New thread on the right       |
 | `mod+Shift+W`             | Close the active pane         |
 | `mod+Alt+Arrow keys`      | Move to the pane on that side |
 | `mod+Alt+1` … `mod+Alt+8` | Go to pane 1–8                |
