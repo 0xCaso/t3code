@@ -48,6 +48,9 @@ export function SplitViewRoot({ routeTarget }: { routeTarget: ThreadRouteTarget 
   const lastRouteKeyRef = useRef<string | null>(null);
   const routeKey = paneTabKey(routeTarget);
 
+  const visibleCount = layout ? visibleColumnCount(layout, workspaceWidth) : 1;
+  const maxColumns = maxColumnsForWidth(workspaceWidth);
+
   // Layout effect: the persisted layout never paints a frame on the wrong thread.
   useLayoutEffect(() => {
     const state = useSplitLayoutStore.getState();
@@ -55,20 +58,18 @@ export function SplitViewRoot({ routeTarget }: { routeTarget: ThreadRouteTarget 
       layout: state.layout,
       routeTarget,
       lastRouteKey: lastRouteKeyRef.current,
-      openRouteInNewTab: state.openRouteInNewTab,
+      openRouteIn: state.openRouteIn,
+      maxColumns,
     });
     lastRouteKeyRef.current = routeKey;
     if (action.kind === "apply") {
       state.setLayout(action.layout);
-      if (state.openRouteInNewTab) state.setOpenRouteInNewTab(false);
+      if (state.openRouteIn) state.setOpenRouteIn(null);
     } else if (action.kind === "navigate") {
       void navigateToTab(navigate, action.tab);
     }
     // routeTarget is identified by routeKey.
-  }, [routeKey, layout, navigate]);
-
-  const visibleCount = layout ? visibleColumnCount(layout, workspaceWidth) : 1;
-  const maxColumns = maxColumnsForWidth(workspaceWidth);
+  }, [routeKey, layout, navigate, maxColumns]);
   const activePaneId = layout?.activePaneId;
   // Also runs on activation: a pane activated from the sidebar or the parked chip may be parked.
   useLayoutEffect(() => {
