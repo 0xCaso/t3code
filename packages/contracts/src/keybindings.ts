@@ -118,6 +118,7 @@ export const STATIC_KEYBINDING_COMMANDS = [
   "usage.period.month",
   "usage.period.quarter",
   "splitView.newTab",
+  "splitView.newColumn",
   "splitView.closePane",
   "splitView.focusLeft",
   "splitView.focusRight",

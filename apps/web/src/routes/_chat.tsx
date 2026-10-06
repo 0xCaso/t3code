@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo } from "react";
 
 import { isCommandPaletteOpen } from "../commandPaletteBus";
 import { SplitViewRoot } from "../splitView/SplitViewRoot";
-import { runSplitViewCommand, startThreadInNewTab } from "../splitView/splitViewCommands";
+import { runSplitViewCommand, startThreadInSplit } from "../splitView/splitViewCommands";
+import type { OpenRouteIn } from "../splitView/splitLayoutStore";
 import { resolveThreadRouteTarget } from "../threadRoutes";
 import { useClientSettings, useLegacySidebarEnabled } from "../hooks/useSettings";
 import { openCommandPalette } from "../commandPaletteBus";
@@ -63,15 +64,17 @@ function ChatRouteGlobalShortcuts() {
       ? selectActiveRightPanel(state.byThreadKey, routeThreadRef) === "preview"
       : false,
   );
-  const startNewTab = useCallback(
-    () =>
-      startThreadInNewTab(() =>
-        startNewThreadFromContext({
-          activeDraftThread,
-          activeThread: activeThread ?? undefined,
-          defaultProjectRef,
-          handleNewThread,
-        }),
+  const startThread = useCallback(
+    (where: OpenRouteIn) =>
+      startThreadInSplit(
+        () =>
+          startNewThreadFromContext({
+            activeDraftThread,
+            activeThread: activeThread ?? undefined,
+            defaultProjectRef,
+            handleNewThread,
+          }),
+        where,
       ),
     [activeDraftThread, activeThread, defaultProjectRef, handleNewThread],
   );
@@ -106,7 +109,7 @@ function ChatRouteGlobalShortcuts() {
       if (command?.startsWith("splitView.") && inChat) {
         event.preventDefault();
         event.stopPropagation();
-        runSplitViewCommand(command, { startNewTab });
+        runSplitViewCommand(command, { startThread });
         return;
       }
 
@@ -220,7 +223,7 @@ function ChatRouteGlobalShortcuts() {
     routeThreadRef,
     scratchEnvironmentId,
     selectedThreadKeysSize,
-    startNewTab,
+    startThread,
     startScratchThread,
     legacySidebarEnabled,
     terminalOpen,

@@ -87,7 +87,7 @@ import { useDesktopLocalBootstraps } from "../connection/useDesktopLocalBootstra
 import { useHandleNewThread } from "../hooks/useHandleNewThread";
 import { allPanes } from "../splitView/splitLayout";
 import { openThreadInSplit, useSplitLayoutStore } from "../splitView/splitLayoutStore";
-import { runSplitViewCommand, startThreadInNewTab } from "../splitView/splitViewCommands";
+import { runSplitViewCommand, startThreadInSplit } from "../splitView/splitViewCommands";
 import { useOpenPanelPullRequestUrl } from "../hooks/useOpenPanelPullRequestUrl";
 import { writeTextToClipboard } from "../hooks/useCopyToClipboard";
 import { useClientSettings } from "../hooks/useSettings";
@@ -1967,13 +1967,33 @@ function OpenCommandPaletteDialog(props: {
         icon: <PanelTopIcon className={ITEM_ICON_CLASS} />,
         shortcutCommand: "splitView.newTab",
         run: async () => {
-          startThreadInNewTab(() =>
+          startThreadInSplit(() =>
             startNewThreadFromContext({
               activeDraftThread,
               activeThread: activeThread ?? undefined,
               defaultProjectRef,
               handleNewThread,
             }),
+          );
+        },
+      },
+      {
+        kind: "action",
+        value: "action:split-new-column",
+        searchTerms: ["split", "column", "new", "pane", "side", "beside", "right"],
+        title: "Split: new thread on the right",
+        icon: <Columns2Icon className={ITEM_ICON_CLASS} />,
+        shortcutCommand: "splitView.newColumn",
+        run: async () => {
+          startThreadInSplit(
+            () =>
+              startNewThreadFromContext({
+                activeDraftThread,
+                activeThread: activeThread ?? undefined,
+                defaultProjectRef,
+                handleNewThread,
+              }),
+            "column",
           );
         },
       },
@@ -1986,7 +2006,7 @@ function OpenCommandPaletteDialog(props: {
         icon: <PanelTopIcon className={ITEM_ICON_CLASS} />,
         shortcutCommand: "splitView.closePane",
         run: async () => {
-          runSplitViewCommand("splitView.closePane", { startNewTab: () => {} });
+          runSplitViewCommand("splitView.closePane", { startThread: () => {} });
         },
       },
       {

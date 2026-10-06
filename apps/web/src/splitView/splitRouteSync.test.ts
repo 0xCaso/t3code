@@ -16,7 +16,8 @@ describe("reconcileRoute", () => {
       layout: null,
       routeTarget: tab("a"),
       lastRouteKey: null,
-      openRouteInNewTab: false,
+      openRouteIn: null,
+      maxColumns: 4,
     });
     expect(action.kind).toBe("apply");
   });
@@ -26,7 +27,8 @@ describe("reconcileRoute", () => {
       layout: createLayout(tab("a")),
       routeTarget: null,
       lastRouteKey: "env:a",
-      openRouteInNewTab: false,
+      openRouteIn: null,
+      maxColumns: 4,
     });
     expect(action).toEqual({ kind: "none" });
   });
@@ -38,7 +40,8 @@ describe("reconcileRoute", () => {
       layout: split,
       routeTarget: tab("a"),
       lastRouteKey: "env:b",
-      openRouteInNewTab: false,
+      openRouteIn: null,
+      maxColumns: 4,
     });
     expect(action.kind === "apply" && action.layout.activePaneId).toBe(base.activePaneId);
   });
@@ -51,7 +54,8 @@ describe("reconcileRoute", () => {
       layout: focusedLeft,
       routeTarget: tab("b"),
       lastRouteKey: "env:b",
-      openRouteInNewTab: false,
+      openRouteIn: null,
+      maxColumns: 4,
     });
     expect(action.kind === "navigate" && paneTabKey(action.tab)).toBe("env:a");
   });
@@ -63,7 +67,8 @@ describe("reconcileRoute", () => {
         layout,
         routeTarget: tab("a"),
         lastRouteKey: "env:a",
-        openRouteInNewTab: false,
+        openRouteIn: null,
+        maxColumns: 4,
       }),
     ).toEqual({ kind: "none" });
   });
@@ -74,7 +79,37 @@ describe("reconcileRoute", () => {
       layout,
       routeTarget: tab("b"),
       lastRouteKey: "env:a",
-      openRouteInNewTab: true,
+      openRouteIn: "tab",
+      maxColumns: 4,
+    });
+    expect(action.kind === "apply" && action.layout.columns[0]?.panes[0]?.tabs).toHaveLength(2);
+  });
+
+  it("opens the route in a new column on the right when asked to", () => {
+    const layout = createLayout(tab("a"));
+    const action = reconcileRoute({
+      layout,
+      routeTarget: tab("b"),
+      lastRouteKey: "env:a",
+      openRouteIn: "column",
+      maxColumns: 4,
+    });
+    expect(
+      action.kind === "apply" && action.layout.columns.map((c) => c.panes[0]?.tabs.length),
+    ).toEqual([1, 1]);
+    expect(
+      action.kind === "apply" && paneTabKey(action.layout.columns[1]!.panes[0]!.tabs[0]!),
+    ).toBe("env:b");
+  });
+
+  it("falls back to a tab when no column fits", () => {
+    const layout = createLayout(tab("a"));
+    const action = reconcileRoute({
+      layout,
+      routeTarget: tab("b"),
+      lastRouteKey: "env:a",
+      openRouteIn: "column",
+      maxColumns: 1,
     });
     expect(action.kind === "apply" && action.layout.columns[0]?.panes[0]?.tabs).toHaveLength(2);
   });

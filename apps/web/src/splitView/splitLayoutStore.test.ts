@@ -64,7 +64,7 @@ describe("split store helpers", () => {
   beforeEach(() =>
     useSplitLayoutStore.setState({
       layout: null,
-      openRouteInNewTab: false,
+      openRouteIn: null,
       visibleColumnCount: 1,
       maxColumns: 4,
     }),

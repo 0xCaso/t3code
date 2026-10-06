@@ -21,14 +21,21 @@ export function reconcileRoute(input: {
   readonly layout: SplitLayout | null;
   readonly routeTarget: PaneTab | null;
   readonly lastRouteKey: string | null;
-  readonly openRouteInNewTab: boolean;
+  readonly openRouteIn: "tab" | "column" | null;
+  readonly maxColumns: number;
 }): RouteSyncAction {
   const { layout, routeTarget } = input;
   if (!routeTarget) return { kind: "none" };
   if (!layout) return { kind: "apply", layout: createLayout(routeTarget) };
   const routeKey = paneTabKey(routeTarget);
   if (routeKey !== input.lastRouteKey) {
-    const next = showTarget(layout, routeTarget, input.openRouteInNewTab ? "new-tab" : "replace");
+    const mode =
+      input.openRouteIn === "tab"
+        ? "new-tab"
+        : input.openRouteIn === "column"
+          ? "new-column"
+          : "replace";
+    const next = showTarget(layout, routeTarget, mode, input.maxColumns);
     return next === layout ? { kind: "none" } : { kind: "apply", layout: next };
   }
   const tab = activeTab(layout);

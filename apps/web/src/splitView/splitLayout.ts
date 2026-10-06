@@ -168,13 +168,17 @@ export function replaceActiveTab(layout: SplitLayout, paneId: string, tab: PaneT
 export function showTarget(
   layout: SplitLayout,
   tab: PaneTab,
-  mode: "replace" | "new-tab",
+  mode: "replace" | "new-tab" | "new-column",
+  maxColumns = MAX_COLUMNS,
 ): SplitLayout {
   const existing = locateTab(layout, paneTabKey(tab));
   if (existing) return activateTab(layout, existing.paneId, existing.index);
   const paneId = activePane(layout).id;
-  if (mode === "new-tab") {
-    const opened = openTab(layout, paneId, tab);
+  if (mode !== "replace") {
+    const opened =
+      mode === "new-tab"
+        ? openTab(layout, paneId, tab)
+        : openBeside(layout, paneId, "right", tab, maxColumns);
     if (opened) return opened;
   }
   return replaceActiveTab(layout, paneId, tab);

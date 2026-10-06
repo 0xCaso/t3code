@@ -547,6 +547,7 @@ import {
 import { useLocalStorage } from "~/hooks/useLocalStorage";
 import { useComposerHandleContext } from "../composerHandleContext";
 import { takePaneActivatedByKeyboard, usePaneInteractive } from "../splitView/paneInteractive";
+import { startThreadInSplit } from "../splitView/splitViewCommands";
 import {
   awaitAttachmentUploads,
   getUploadedAttachments,
@@ -2560,6 +2561,13 @@ export default function ChatView(props: ChatViewProps) {
   const handleNewThreadInActiveProject = useCallback(() => {
     startNewThreadForProject(activeProjectRef, handleNewThread);
   }, [activeProjectRef, handleNewThread]);
+  const splitWindow = useMemo(
+    () =>
+      activeProjectRef
+        ? () => startThreadInSplit(() => handleNewThread(activeProjectRef), "column")
+        : undefined,
+    [activeProjectRef, handleNewThread],
+  );
   const projectGroupingSettings = selectProjectGroupingSettings(settings);
   const activeDraftLogicalProjectKey =
     !isServerThread && activeProject
@@ -10924,6 +10932,8 @@ export default function ChatView(props: ChatViewProps) {
     onToggleTerminal: toggleTerminalVisibility,
     onToggleThreadPanel: toggleThreadPanel,
     onToggleRightPanel: toggleRightPanel,
+    onSplitWindow: pane ? undefined : splitWindow,
+    splitWindowShortcutLabel: shortcutLabelForCommand(keybindings, "splitView.newColumn"),
   } satisfies PanelLayoutControlsProps;
   const panelToggleControls = (
     <PanelLayoutControls
@@ -10940,6 +10950,7 @@ export default function ChatView(props: ChatViewProps) {
         {...panelToggleControlProps}
         showTerminalControl={false}
         showRightPanelControl={false}
+        onSplitWindow={undefined}
       />
     </div>
   );
@@ -11004,7 +11015,7 @@ export default function ChatView(props: ChatViewProps) {
       {isElectron && rightPanelControlsAtRoot ? (
         <span
           aria-hidden
-          className="pointer-events-none fixed top-[var(--workspace-controls-top)] right-[var(--workspace-controls-right)] h-[var(--workspace-topbar-height)] w-28 [-webkit-app-region:no-drag]"
+          className="pointer-events-none fixed top-[var(--workspace-controls-top)] right-[var(--workspace-controls-right)] h-[var(--workspace-topbar-height)] w-36 [-webkit-app-region:no-drag]"
         />
       ) : null}
       {!rightPanelControlsAtRoot && !rightPanelControlsInPanel ? panelLayoutControls : null}

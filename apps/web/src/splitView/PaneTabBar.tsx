@@ -22,7 +22,7 @@ import {
 } from "./splitLayout";
 import { beginSplitDrag, endSplitDrag, moveSplitDrag } from "./splitDrag";
 import { useSplitLayoutStore } from "./splitLayoutStore";
-import { startThreadInNewTab } from "./splitViewCommands";
+import { startThreadInSplit } from "./splitViewCommands";
 import type { PaneTabBarControls } from "./types";
 
 export function PaneTabBar(props: {
@@ -44,7 +44,7 @@ export function PaneTabBar(props: {
   const newTab = () => {
     if (!projectOwner) return;
     const projectRef = scopeProjectRef(projectOwner.environmentId, projectOwner.projectId);
-    startThreadInNewTab(() => handleNewThread(projectRef));
+    startThreadInSplit(() => handleNewThread(projectRef));
   };
 
   return (

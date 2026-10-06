@@ -3,15 +3,19 @@ import type { KeybindingCommand } from "@t3tools/contracts";
 import { stackedThreadToast, toastManager } from "../components/ui/toast";
 import { setPaneActivatedByKeyboard } from "./paneInteractive";
 import { activatePane, closePane, focusNeighbor, paneByOrdinal } from "./splitLayout";
-import { useSplitLayoutStore } from "./splitLayoutStore";
+import { useSplitLayoutStore, type OpenRouteIn } from "./splitLayoutStore";
 
 /**
- * Runs `startThread` with the next route opening as a new tab instead of
- * replacing the active one. Shared by the new-tab shortcut, the palette and the tab bar's +.
+ * Runs `startThread` with the next route opening as a new tab, or in a new column to the right,
+ * instead of replacing the active one. Shared by the shortcuts, the palette, the tab bar's + and
+ * the header's split button.
  */
-export function startThreadInNewTab(startThread: () => Promise<unknown>): void {
-  const { setOpenRouteInNewTab } = useSplitLayoutStore.getState();
-  setOpenRouteInNewTab(true);
+export function startThreadInSplit(
+  startThread: () => Promise<unknown>,
+  where: OpenRouteIn = "tab",
+): void {
+  const { setOpenRouteIn } = useSplitLayoutStore.getState();
+  setOpenRouteIn(where);
   void startThread()
     .catch((error: unknown) => {
       toastManager.add(
@@ -22,13 +26,13 @@ export function startThreadInNewTab(startThread: () => Promise<unknown>): void {
         }),
       );
     })
-    .finally(() => setOpenRouteInNewTab(false));
+    .finally(() => setOpenRouteIn(null));
 }
 
 /** Handles a `splitView.*` keybinding command against the current layout. */
 export function runSplitViewCommand(
   command: KeybindingCommand,
-  actions: { startNewTab: () => void },
+  actions: { startThread: (where: OpenRouteIn) => void },
 ): void {
   const before = useSplitLayoutStore.getState().layout?.activePaneId;
   applySplitViewCommand(command, actions);
@@ -38,12 +42,15 @@ export function runSplitViewCommand(
 
 function applySplitViewCommand(
   command: KeybindingCommand,
-  actions: { startNewTab: () => void },
+  actions: { startThread: (where: OpenRouteIn) => void },
 ): void {
   const { update, visibleColumnCount } = useSplitLayoutStore.getState();
   switch (command) {
     case "splitView.newTab":
-      actions.startNewTab();
+      actions.startThread("tab");
+      return;
+    case "splitView.newColumn":
+      actions.startThread("column");
       return;
     case "splitView.closePane":
       update((layout) => closePane(layout, layout.activePaneId));

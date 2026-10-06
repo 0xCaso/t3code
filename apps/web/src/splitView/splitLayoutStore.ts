@@ -22,18 +22,20 @@ import {
   type SplitPane,
 } from "./splitLayout";
 
+export type OpenRouteIn = "tab" | "column";
+
 interface SplitLayoutState {
   readonly layout: SplitLayout | null;
   /** Column order before the window got too narrow for the active column; see fitColumnOrder. */
   readonly columnOrder: ReadonlyArray<string> | null;
-  /** One-shot: the next thread route opens as a new tab of the active pane (+ and mod+t). */
-  readonly openRouteInNewTab: boolean;
+  /** One-shot: the next thread route opens as a new tab of the active pane, or in a new column beside it. */
+  readonly openRouteIn: OpenRouteIn | null;
   /** Measured by SplitViewRoot; not persisted. */
   readonly visibleColumnCount: number;
   readonly maxColumns: number;
   setLayout: (layout: SplitLayout) => void;
   update: (fn: (layout: SplitLayout) => SplitLayout | null) => void;
-  setOpenRouteInNewTab: (value: boolean) => void;
+  setOpenRouteIn: (value: OpenRouteIn | null) => void;
   setCapacity: (capacity: { visibleColumnCount: number; maxColumns: number }) => void;
   /** Keeps the active column on screen and restores the order once there is room. */
   fitColumns: (visibleColumnCount: number) => void;
@@ -115,7 +117,7 @@ export const useSplitLayoutStore = create<SplitLayoutState>()(
     (set) => ({
       layout: null,
       columnOrder: null,
-      openRouteInNewTab: false,
+      openRouteIn: null,
       visibleColumnCount: 1,
       maxColumns: MAX_COLUMNS,
       setLayout: (layout) => set({ layout }),
@@ -125,7 +127,7 @@ export const useSplitLayoutStore = create<SplitLayoutState>()(
           const next = fn(state.layout);
           return next === null || next === state.layout ? state : { layout: next };
         }),
-      setOpenRouteInNewTab: (openRouteInNewTab) => set({ openRouteInNewTab }),
+      setOpenRouteIn: (openRouteIn) => set({ openRouteIn }),
       setCapacity: ({ visibleColumnCount, maxColumns }) =>
         set((state) =>
           state.visibleColumnCount === visibleColumnCount && state.maxColumns === maxColumns

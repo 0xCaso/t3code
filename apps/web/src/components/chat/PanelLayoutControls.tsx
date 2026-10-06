@@ -1,9 +1,10 @@
-import { PanelBottomIcon, PanelRightIcon, SquareMenuIcon } from "lucide-react";
+import { Columns2Icon, PanelBottomIcon, PanelRightIcon, SquareMenuIcon } from "lucide-react";
 import { Maximize2, Minimize2 } from "lucide";
 import { MorphIcon } from "~/components/MorphIcon";
 import { memo, type ReactElement } from "react";
 
 import type { ThreadPanelPresentation } from "../../rightPanelLayout";
+import { Button } from "../ui/button";
 import { PopoverCreateHandle, PopoverTrigger } from "../ui/popover";
 import { Toggle } from "../ui/toggle";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
@@ -24,6 +25,9 @@ export interface PanelLayoutControlsProps {
   rightPanelOpen: boolean;
   rightPanelShortcutLabel: string | null;
   rightPanelUnavailableLabel?: string;
+  /** Splits a lone thread view, opening a new thread in a column to its right. */
+  onSplitWindow?: (() => void) | undefined;
+  splitWindowShortcutLabel?: string | null;
   onToggleTerminal: () => void;
   onToggleThreadPanel: () => void;
   onToggleRightPanel: () => void;
@@ -45,6 +49,8 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
   rightPanelOpen,
   rightPanelShortcutLabel,
   rightPanelUnavailableLabel = "Right panel is unavailable",
+  onSplitWindow,
+  splitWindowShortcutLabel,
   onToggleTerminal,
   onToggleThreadPanel,
   onToggleRightPanel,
@@ -84,6 +90,27 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
       className="flex h-full shrink-0 items-center gap-1 [-webkit-app-region:no-drag]"
       data-panel-layout-controls
     >
+      {onSplitWindow ? (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                className="shrink-0 [-webkit-app-region:no-drag]"
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Split window"
+                onClick={onSplitWindow}
+              />
+            }
+          >
+            <Columns2Icon className="size-4" />
+          </TooltipTrigger>
+          <TooltipPopup side="bottom">
+            New thread on the right
+            {splitWindowShortcutLabel ? ` (${splitWindowShortcutLabel})` : ""}
+          </TooltipPopup>
+        </Tooltip>
+      ) : null}
       {showThreadPanelControl
         ? threadPanelPresentation === "popover"
           ? threadPanelTooltip(

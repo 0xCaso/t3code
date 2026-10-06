@@ -87,6 +87,7 @@ export const DEFAULT_KEYBINDINGS: ReadonlyArray<KeybindingRule> = [
   { key: "mod+z", command: "thread.undo", when: "!terminalFocus && !editableFocus" },
   // Desktop only: the browser owns mod+t, mod+shift+w and mod+alt+arrows.
   { key: "mod+t", command: "splitView.newTab", when: "isDesktop && !terminalFocus" },
+  { key: "mod+\\", command: "splitView.newColumn", when: "!terminalFocus" },
   { key: "mod+shift+w", command: "splitView.closePane", when: "isDesktop && !terminalFocus" },
   { key: "mod+alt+arrowleft", command: "splitView.focusLeft", when: "isDesktop && !terminalFocus" },
   {

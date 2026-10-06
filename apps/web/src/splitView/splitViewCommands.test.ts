@@ -5,13 +5,13 @@ import { beforeEach, describe, expect, it } from "vite-plus/test";
 import { setPaneActivatedByKeyboard, takePaneActivatedByKeyboard } from "./paneInteractive";
 import { createLayout, openBeside, type PaneTab } from "./splitLayout";
 import { useSplitLayoutStore } from "./splitLayoutStore";
-import { runSplitViewCommand, startThreadInNewTab } from "./splitViewCommands";
+import { runSplitViewCommand, startThreadInSplit } from "./splitViewCommands";
 
 const tab = (id: string): PaneTab => ({
   kind: "server",
   threadRef: scopeThreadRef(EnvironmentId.make("env"), ThreadId.make(id)),
 });
-const noActions = { startNewTab: () => {} };
+const noActions = { startThread: () => {} };
 
 describe("runSplitViewCommand keyboard activation", () => {
   beforeEach(() => {
@@ -40,18 +40,18 @@ describe("runSplitViewCommand keyboard activation", () => {
   });
 });
 
-describe("startThreadInNewTab", () => {
+describe("startThreadInSplit", () => {
   it("resets the new-tab flag and handles the rejection when starting the thread fails", async () => {
     let settle!: () => void;
     const settled = new Promise<void>((resolve) => (settle = resolve));
-    startThreadInNewTab(() => {
-      expect(useSplitLayoutStore.getState().openRouteInNewTab).toBe(true);
+    startThreadInSplit(() => {
+      expect(useSplitLayoutStore.getState().openRouteIn).toBe("tab");
       settle();
       return Promise.reject(new Error("no project"));
     });
     await settled;
     await Promise.resolve();
     await Promise.resolve();
-    expect(useSplitLayoutStore.getState().openRouteInNewTab).toBe(false);
+    expect(useSplitLayoutStore.getState().openRouteIn).toBeNull();
   });
 });
