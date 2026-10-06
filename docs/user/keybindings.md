@@ -1,7 +1,7 @@
 # Keybindings
 
 Customize shortcuts in **Settings → Keybindings** on web and desktop. That page
-also lists the command IDs and defaults available in your version.
+also lists the command IDs and defaults available in your version. See [Split view](./split-view.md#shortcuts-desktop-app) for pane and tab shortcuts.
 
 ## Composer controls
 
