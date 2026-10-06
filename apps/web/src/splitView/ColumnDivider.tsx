@@ -50,7 +50,8 @@ export function ColumnDivider(props: { index: number; gridWidthPx: number }) {
     <div
       role="separator"
       aria-orientation="vertical"
-      className="relative w-px shrink-0 cursor-col-resize bg-border before:absolute before:inset-y-0 before:-left-1 before:-right-1 before:content-['']"
+      // z-10: the next column's positioned content would otherwise paint over the hit area's right half.
+      className="relative z-10 w-px shrink-0 cursor-col-resize bg-border before:absolute before:inset-y-0 before:-left-1 before:-right-1 before:content-['']"
       onPointerDown={onPointerDown}
     />
   );
