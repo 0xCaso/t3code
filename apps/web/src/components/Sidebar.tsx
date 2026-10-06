@@ -251,7 +251,9 @@ import {
   type ProviderInstanceEntry,
 } from "../providerInstances";
 import { useThreadRunningTerminalIds } from "../state/terminalSessions";
-import { openThreadInSplit } from "../splitView/splitLayoutStore";
+import { beginSplitDrag, endSplitDrag, moveSplitDrag } from "../splitView/splitDrag";
+import { applyDrop } from "../splitView/splitLayout";
+import { openThreadInSplit, useSplitLayoutStore } from "../splitView/splitLayoutStore";
 import { stackedThreadToast, toastManager } from "./ui/toast";
 import { Button, InlineButton } from "./ui/button";
 import {
@@ -3433,9 +3435,15 @@ export default function Sidebar() {
   const dragTargetSection = isContextDrag ? null : (dragState?.targetSection ?? null);
   const dragSensorRef = useRef<SidebarPointerSensor | null>(null);
   const contextDragKeyRef = useRef<string | null>(null);
+  // True while this gesture owns the split view drop overlay (a single thread outside the list).
+  const splitDragActiveRef = useRef(false);
   const finishThreadDrag = useCallback((started: boolean) => {
     dragSensorRef.current = null;
     contextDragKeyRef.current = null;
+    if (splitDragActiveRef.current) {
+      splitDragActiveRef.current = false;
+      endSplitDrag();
+    }
     endThreadContextDrag();
     if (started) {
       listMotionRef.current?.release();
@@ -3472,12 +3480,26 @@ export default function Sidebar() {
           : { ...current, contextDrag },
       );
       if (!contextDrag) {
+        if (splitDragActiveRef.current) {
+          splitDragActiveRef.current = false;
+          endSplitDrag();
+        }
         endThreadContextDrag();
         return false;
       }
       const threads = contextDragThreads();
       const title =
         threadByKeyRef.current.get(contextDragKeyRef.current ?? "")?.title.trim() || "Thread";
+      if (threads.length === 1) {
+        if (!splitDragActiveRef.current) {
+          splitDragActiveRef.current = true;
+          beginSplitDrag({ kind: "sidebar" }, title, point);
+        }
+        moveSplitDrag(point);
+      } else if (splitDragActiveRef.current) {
+        splitDragActiveRef.current = false;
+        endSplitDrag();
+      }
       moveThreadContextDragGhost(point, { title, count: threads.length });
       return true;
     },
@@ -3486,7 +3508,19 @@ export default function Sidebar() {
   const dropThreadContextDrag = useCallback(
     (point: { x: number; y: number }) => {
       if (!pointerOutsideThreadList(point)) return false;
-      dropThreadContext(point, contextDragThreads());
+      const threads = contextDragThreads();
+      const split = splitDragActiveRef.current ? endSplitDrag() : null;
+      splitDragActiveRef.current = false;
+      const [only] = threads;
+      if (split && split.preview.kind === "accept" && only && threads.length === 1) {
+        const { layout, maxColumns, setLayout } = useSplitLayoutStore.getState();
+        const next = layout
+          ? applyDrop(layout, split.preview.target, { kind: "server", threadRef: only }, maxColumns)
+          : null;
+        if (next) setLayout(next);
+        return true;
+      }
+      dropThreadContext(point, threads);
       // Releasing outside the list never reorders, whether or not a composer took the drop.
       return true;
     },
