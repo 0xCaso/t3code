@@ -8,6 +8,7 @@ import {
   buildThreadRouteParams,
   type ThreadRouteTarget,
 } from "../threadRoutes";
+import { SplitDropOverlay } from "./SplitDropOverlay";
 import { SplitPane } from "./SplitPane";
 import {
   ensureActiveVisible,
@@ -131,6 +132,7 @@ export function SplitViewRoot({ routeTarget }: { routeTarget: ThreadRouteTarget 
         </div>
         {chrome ? <div ref={setRightPanelSlot} className="contents" /> : null}
       </div>
+      <SplitDropOverlay />
     </SidebarInset>
   );
 }

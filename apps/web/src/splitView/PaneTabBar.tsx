@@ -1,5 +1,6 @@
 import { scopeProjectRef } from "@t3tools/client-runtime/environment";
 import { EllipsisIcon, PlusIcon, XIcon } from "lucide-react";
+import { useRef, type PointerEvent as ReactPointerEvent } from "react";
 
 import { ThreadRowLeadingStatus } from "../components/ThreadStatusIndicators";
 import { Button } from "../components/ui/button";
@@ -10,11 +11,13 @@ import {
   activateTab,
   closePane,
   closeTab,
+  moveTab,
   paneActiveTab,
   type PaneTab,
   type SplitColumn,
   type SplitPane,
 } from "./splitLayout";
+import { beginSplitDrag, endSplitDrag, moveSplitDrag } from "./splitDrag";
 import { useSplitLayoutStore } from "./splitLayoutStore";
 import type { PaneTabBarControls } from "./types";
 
@@ -51,6 +54,8 @@ export function PaneTabBar(props: {
                 : tab.draftId
             }
             tab={tab}
+            paneId={pane.id}
+            index={index}
             selected={index === pane.activeTabIndex}
             onSelect={() => update((layout) => activateTab(layout, pane.id, index))}
             onClose={() => update((layout) => closeTab(layout, pane.id, index))}
@@ -98,18 +103,74 @@ export function PaneTabBar(props: {
 
 function PaneTabButton(props: {
   tab: PaneTab;
+  paneId: string;
+  index: number;
   selected: boolean;
   onSelect: () => void;
   onClose: () => void;
 }) {
   const shell = useThreadShell(props.tab.kind === "server" ? props.tab.threadRef : null);
   const title = shell?.title.trim() || (props.tab.kind === "draft" ? "New thread" : "Thread");
+  // Set when a pointer drag ends so the click that follows does not re-activate the tab.
+  const draggedRef = useRef(false);
+
+  const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+    draggedRef.current = false;
+    const start = { x: event.clientX, y: event.clientY };
+    let dragging = false;
+    const element = event.currentTarget;
+    const onMove = (move: PointerEvent) => {
+      const point = { x: move.clientX, y: move.clientY };
+      if (!dragging && Math.hypot(point.x - start.x, point.y - start.y) < 4) return;
+      if (!dragging) {
+        dragging = true;
+        draggedRef.current = true;
+        element.setPointerCapture(event.pointerId);
+        beginSplitDrag({ kind: "tab", paneId: props.paneId, index: props.index }, title, point);
+      }
+      moveSplitDrag(point);
+    };
+    const finish = (commit: boolean) => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onCancel);
+      window.removeEventListener("keydown", onKey, true);
+      if (!dragging) return;
+      const result = endSplitDrag();
+      if (!commit || !result || result.preview.kind !== "accept") return;
+      const target = result.preview.target;
+      const { maxColumns } = useSplitLayoutStore.getState();
+      useSplitLayoutStore
+        .getState()
+        .update((layout) =>
+          moveTab(layout, { paneId: props.paneId, index: props.index }, target, maxColumns),
+        );
+    };
+    const onUp = () => finish(true);
+    const onCancel = () => finish(false);
+    const onKey = (key: KeyboardEvent) => {
+      if (key.key === "Escape") finish(false);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onCancel);
+    window.addEventListener("keydown", onKey, true);
+  };
+
   return (
     <div
       role="tab"
       aria-selected={props.selected}
       tabIndex={0}
-      onClick={props.onSelect}
+      onPointerDown={onPointerDown}
+      onClick={() => {
+        if (draggedRef.current) {
+          draggedRef.current = false;
+          return;
+        }
+        props.onSelect();
+      }}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") props.onSelect();
       }}
