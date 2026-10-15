@@ -91,12 +91,6 @@ export function PaneTabBar(props: {
           onClick={controls.toggleThreadDetails}
         >
           <EllipsisIcon />
-          {controls.threadDetailsAttention ? (
-            <span
-              className="absolute right-1 top-1 size-1.5 rounded-full bg-warning ring-2 ring-background"
-              aria-hidden="true"
-            />
-          ) : null}
         </Button>
       ) : null}
       <Button

@@ -72,6 +72,7 @@ export function buildDraftActionMenuItems(options: {
 }
 
 export interface ThreadActionMenuState {
+  readonly canOperate: boolean;
   readonly branch: string | null;
   /** The sidebar row menu opens threads into the split view; the chat header menu does not. */
   readonly splitView: boolean;
@@ -102,6 +103,21 @@ export interface ThreadActionMenuState {
     readonly titleRegeneration: boolean;
   };
   readonly snoozePresets: ReadonlyArray<SnoozePreset>;
+}
+
+/** Local navigation, read markers, and copying remain available to read-only clients. */
+export function threadActionRequiresOperate(action: ThreadActionMenuId): boolean {
+  return ![
+    "open-in-new-tab",
+    "open-in-new-column",
+    "new-thread-on-branch",
+    "project-settings",
+    "mark-unread",
+    "copy",
+    "copy-path",
+    "copy-branch",
+    "copy-thread-id",
+  ].includes(action);
 }
 
 /**
@@ -239,8 +255,21 @@ export function buildThreadActionMenuItems(
       icon: "trash",
     },
   ];
-  if (!state.splitView) return items;
-  const [first, ...rest] = items;
+  const gated = state.canOperate
+    ? items
+    : items.map((item) =>
+        threadActionRequiresOperate(item.id)
+          ? {
+              ...item,
+              disabled: true,
+              ...(item.children
+                ? { children: item.children.map((child) => ({ ...child, disabled: true })) }
+                : {}),
+            }
+          : item,
+      );
+  if (!state.splitView) return gated;
+  const [first, ...rest] = gated;
   return [
     { id: "open-in-new-tab", label: "Open in new tab" },
     { id: "open-in-new-column", label: "Open in new column" },

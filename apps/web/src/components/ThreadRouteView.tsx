@@ -19,7 +19,11 @@ import type { ChatViewPane } from "../splitView/types";
 import { useEnvironmentThreadRefs, useThreadRefs, useThreadShell } from "../state/entities";
 import { useEnvironmentQuery } from "../state/query";
 import { environmentShell } from "../state/shell";
-import { resolveThreadRouteRenderState, type ThreadRouteTarget } from "../threadRoutes";
+import {
+  isThreadRouteSnapshotAuthoritative,
+  resolveThreadRouteRenderState,
+  type ThreadRouteTarget,
+} from "../threadRoutes";
 
 /**
  * What a thread view asks its host to do instead of navigating itself: show a
@@ -84,7 +88,7 @@ export function ThreadTargetView({
   );
   const serverThreadShell = serverThread;
   const environmentThreadRefs = useEnvironmentThreadRefs(serverThreadRef?.environmentId ?? null);
-  const bootstrapComplete = shell.data?.snapshot._tag === "Some";
+  const bootstrapComplete = isThreadRouteSnapshotAuthoritative(shell.data?.status);
   const draftThread = useComposerDraftStore((store) =>
     serverThreadRef ? store.getDraftThreadByRef(serverThreadRef) : null,
   );

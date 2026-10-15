@@ -11,7 +11,6 @@ export interface PaneTabBarControls {
   readonly toggleThreadDetails: () => void;
   /** Attach to the tab bar: the thread details popover anchors to it and takes its width. */
   readonly threadDetailsAnchorRef: RefObject<HTMLElement | null>;
-  readonly threadDetailsAttention: boolean;
 }
 
 export interface ChatViewPane {

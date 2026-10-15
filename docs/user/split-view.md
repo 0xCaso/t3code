@@ -25,4 +25,4 @@ A new column needs at least 400 px for every column. When the window gets narrow
 | `mod+Alt+Arrow keys`      | Move to the pane on that side |
 | `mod+Alt+1` … `mod+Alt+8` | Go to pane 1–8                |
 
-In the browser these keys belong to the browser. Use the command palette there, or assign other keys in Settings > Keybindings.
+While the right panel is open, `mod+T` adds a tab to that panel instead. In the browser these keys belong to the browser. Use the command palette there, or assign other keys in Settings > Keybindings.

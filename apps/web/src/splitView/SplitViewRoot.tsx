@@ -3,7 +3,7 @@ import { Fragment, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 import { SidebarInset } from "../components/ui/sidebar";
-import { useElementWidth } from "../hooks/useElementWidth";
+import { observeResize } from "../lib/observeResize";
 import {
   buildDraftThreadRouteParams,
   buildThreadRouteParams,
@@ -38,10 +38,8 @@ const COLUMNS_CLASS_NAME =
 export function SplitViewRoot({ routeTarget }: { routeTarget: ThreadRouteTarget }) {
   const navigate = useNavigate();
   const layout = useSplitLayoutStore((state) => state.layout);
-  const [workspaceRef, measuredWidth] = useElementWidth<HTMLDivElement>();
-  const workspaceWidth = measuredWidth ?? 0;
-  const [gridRef, measuredGridWidth] = useElementWidth<HTMLDivElement>();
-  const gridWidth = measuredGridWidth ?? 0;
+  const [workspaceRef, workspaceWidth] = useMeasuredWidth();
+  const [gridRef, gridWidth] = useMeasuredWidth();
   const [headerSlot, setHeaderSlot] = useState<HTMLDivElement | null>(null);
   const [terminalSlot, setTerminalSlot] = useState<HTMLDivElement | null>(null);
   const [rightPanelSlot, setRightPanelSlot] = useState<HTMLDivElement | null>(null);
@@ -155,4 +153,18 @@ function navigateToTab(navigate: ReturnType<typeof useNavigate>, tab: PaneTab) {
   return tab.kind === "server"
     ? navigate({ to: "/$environmentId/$threadId", params: buildThreadRouteParams(tab.threadRef) })
     : navigate({ to: "/draft/$draftId", params: buildDraftThreadRouteParams(tab.draftId) });
+}
+
+/** Tracks an element's width, committed in the same frame as the resize. Zero until measured. */
+function useMeasuredWidth() {
+  const [element, setElement] = useState<HTMLDivElement | null>(null);
+  const [width, setWidth] = useState(0);
+  useLayoutEffect(() => {
+    if (!element) return;
+    return observeResize(element, (entries) => {
+      const entry = entries.at(-1);
+      if (entry) setWidth(entry.contentRect.width);
+    });
+  }, [element]);
+  return [setElement, width] as const;
 }
