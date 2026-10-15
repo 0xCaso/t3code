@@ -5,40 +5,58 @@
 #
 #   scripts/custom-build.sh v0.0.46-nightly.20261015.3145   build, then install
 #   scripts/custom-build.sh --install                       install a pending build
+#   scripts/custom-build.sh --on-quit                       install a pending build, then reopen
 #
 # The tag only sets the base version (0.0.46). The build is versioned
 # <base>-preview.<today>.<n>, which names it "Custom" and ships it without an
-# update feed. A build made while the app is open waits in release/pending
-# until --install finds the app closed. The three newest DMGs are kept.
+# update feed. A build made while the app is open waits in release/pending and
+# posts a notification. The LaunchAgent com.0xcaso.t3code-custom-install runs
+# --on-quit every 10 seconds: once you quit the app, it installs the pending
+# build and opens it again. The three newest DMGs are kept.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 app="/Applications/T3 Code (Custom).app"
 pending="release/pending/T3 Code (Custom).app"
 
+app_running() {
+  /usr/bin/pgrep -f "$app/Contents/MacOS/" >/dev/null
+}
+
 install_pending() {
   if [ ! -d "$pending" ]; then
     echo "nothing to install"
-    return
+    return 1
   fi
-  local version
+  local version claimed
   version="$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" "$pending/Contents/Info.plist")"
-  if pgrep -f "$app/Contents/MacOS/" >/dev/null; then
+  if app_running; then
     echo "built $version; it installs when T3 Code (Custom) is closed"
-    return
+    return 1
   fi
+  # The rename claims the build, so the build and the LaunchAgent never both install it.
+  claimed="release/installing.$$"
+  mv "$pending" "$claimed" 2>/dev/null || return 1
   rm -rf "$app"
-  ditto "$pending" "$app"
-  rm -rf "$pending"
-  echo "installed $version in $app"
+  /usr/bin/ditto "$claimed" "$app"
+  rm -rf "$claimed"
+  echo "$(date '+%F %T') installed $version in $app"
 }
 
-if [ "${1:-}" = "--install" ]; then
-  install_pending
-  exit 0
-fi
+case "${1:-}" in
+  --install)
+    install_pending || true
+    exit 0
+    ;;
+  --on-quit)
+    # Runs every 10 seconds: stay silent unless there is something to install.
+    [ -d "$pending" ] && ! app_running || exit 0
+    install_pending && /usr/bin/open "$app"
+    exit 0
+    ;;
+esac
 
-tag="${1:?usage: scripts/custom-build.sh <nightly tag> | --install}"
+tag="${1:?usage: scripts/custom-build.sh <nightly tag> | --install | --on-quit}"
 base="${tag#v}"
 base="${base%%-*}"
 day="$(date +%Y%m%d)"
@@ -60,12 +78,18 @@ ls -t release/T3-Code-*-arm64.dmg | tail -n +4 | while read -r old; do
   rm -f "$old" "$old.blockmap" "${old%.dmg}.zip" "${old%.dmg}.zip.blockmap"
 done
 
+# Copy next to pending, then rename: the LaunchAgent must never see a half-copied app.
 mountpoint="$(mktemp -d /tmp/t3-custom-dmg.XXXX)"
+staging="release/staging.$$"
 hdiutil attach -readonly -nobrowse -mountpoint "$mountpoint" "$dmg" >/dev/null
-rm -rf "$pending"
-mkdir -p "$(dirname "$pending")"
-ditto "$mountpoint/T3 Code (Custom).app" "$pending"
+rm -rf "$staging"
+ditto "$mountpoint/T3 Code (Custom).app" "$staging"
 hdiutil detach "$mountpoint" >/dev/null
 rmdir "$mountpoint"
+rm -rf "$pending"
+mkdir -p "$(dirname "$pending")"
+mv "$staging" "$pending"
 
-install_pending
+if ! install_pending; then
+  /usr/bin/osascript -e "display notification \"Versione $version pronta: chiudi l'app (Cmd+Q) per installarla, poi si riapre da sola.\" with title \"T3 Code (Custom)\""
+fi
