@@ -2744,6 +2744,8 @@ export function resolvePackageManagerUserAgent(packageManager: string): string {
 }
 
 export function resolveDesktopProductName(version: string): string {
+  // This fork (0xCaso/t3code) ships its own builds as previews, named "Custom".
+  if (/-preview\.\d{8}\.\d+$/.test(version)) return "T3 Code (Custom)";
   return resolveDesktopUpdateChannel(version) === "nightly"
     ? "T3 Code (Nightly)"
     : (desktopPackageJson.productName ?? "T3 Code");
