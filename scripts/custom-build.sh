@@ -19,8 +19,10 @@ cd "$(dirname "$0")/.."
 app="/Applications/T3 Code (Custom).app"
 pending="release/pending/T3 Code (Custom).app"
 
+# -a: the nightly task runs inside the app, and pgrep skips its own ancestors by default.
+# The pattern is a regex, so the parentheses in the app name are escaped.
 app_running() {
-  /usr/bin/pgrep -f "$app/Contents/MacOS/" >/dev/null
+  /usr/bin/pgrep -af 'T3 Code \(Custom\)\.app/Contents/MacOS/' >/dev/null
 }
 
 install_pending() {
