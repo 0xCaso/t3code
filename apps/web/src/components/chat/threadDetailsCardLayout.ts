@@ -1,7 +1,6 @@
 import type { PreviewMiniPlayerFrame } from "../preview/previewMiniPlayerLayout";
 import { DETAILS_CARD_CLEARANCE } from "./chatCanvasLayout";
 
-/** Inset of the card from the canvas edges; the find bar shares it to line up. */
 export const THREAD_DETAILS_CARD_GAP = 12;
 // Keep in sync with --thread-details-panel-width, which sizes the popover and the find bar.
 const THREAD_DETAILS_CARD_WIDTH = 280;
@@ -15,12 +14,6 @@ export function resolveThreadDetailsCardDensity(
   return "essential";
 }
 
-/**
- * The card pins to the top right while a readable chat lane fits beside it.
- * The chat canvas decides whether chat moves over to make room. With
- * `keepChatCentered` (split view panes) chat never moves: the card pins only
- * beside the centered chat, and otherwise opens as a popover over it.
- */
 export function resolveThreadDetailsCardLayout({
   container,
   lane,
@@ -33,8 +26,8 @@ export function resolveThreadDetailsCardLayout({
   lane: { padding: number; minChatWidth: number; maxChatWidth?: number };
   frame: PreviewMiniPlayerFrame | null;
   overlapsDetailsCard?: boolean;
+  /** Split view panes: chat never moves, so the card pins only beside the centered chat. */
   keepChatCentered?: boolean;
-  /** Space taken above the card, such as the open find bar. */
   topInset?: number;
 }) {
   const gap = THREAD_DETAILS_CARD_GAP;
@@ -49,8 +42,6 @@ export function resolveThreadDetailsCardLayout({
     if (x - DETAILS_CARD_CLEARANCE < (container.width + chatWidth) / 2) return null;
   }
   const y = gap + topInset;
-  // Resizing consumes the height above the player. Dragging first tries to
-  // clear the full card and folds it only when there is no readable placement.
   const height =
     overlapsDetailsCard && frame && frame.x + frame.width > x - gap && frame.x < x + width + gap
       ? Math.min(container.height - y - gap, frame.y - y - gap)

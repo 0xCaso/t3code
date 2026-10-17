@@ -37,11 +37,7 @@ export type ThreadTargetNavigation =
 /**
  * The chat surface for one thread or draft, rendered inside a pane. Whoever
  * mounts it decides what navigating means (a route change, or a tab update in
- * an inactive pane) and receives those requests through `onNavigate`. Each draft gets its own ChatView instance (so
- * a background send's state stays with the draft it came from), and that
- * instance carries the draft through its promotion to a server thread: the
- * thread keeps keying by the draft id while the draft record exists, so the
- * swap only changes props and the timeline never paints an empty frame.
+ * an inactive pane) and receives those requests through `onNavigate`.
  * Plain server threads are unkeyed, so moving between them reuses one
  * instance as ChatView expects.
  */
@@ -59,8 +55,6 @@ export function ThreadTargetView({
     draftId === null ? null : store.getDraftSession(draftId),
   );
   const threadRefs = useThreadRefs();
-  // The server thread this view is about: the route's own ref, or the draft's
-  // reserved ref once the server knows it.
   const inferredThreadRef = draftSession
     ? (threadRefs.find(
         (ref) =>
@@ -157,9 +151,6 @@ export function ThreadTargetView({
     if (target.kind !== "server" || !bootstrapComplete) {
       return;
     }
-    // Navigation already resolved onto this path, so a drop aimed here
-    // passed its landing check; once the thread reads as missing it can
-    // never be attached, release it even when there is nowhere to redirect.
     if (renderState === "missing") {
       const { clearPendingFileDropsForThread } = useSidebarPendingFileDropStore.getState();
       clearPendingFileDropsForThread(target.threadRef);

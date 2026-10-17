@@ -23,7 +23,15 @@ import {
 import { beginSplitDrag, endSplitDrag, moveSplitDrag } from "./splitDrag";
 import { useSplitLayoutStore } from "./splitLayoutStore";
 import { startThreadInSplit } from "./splitViewCommands";
-import type { PaneTabBarControls } from "./types";
+import type { ChatViewPane, PaneTabBarControls } from "./types";
+
+/**
+ * Renders the pane's tab bar as an element, so ChatView hands over its anchor ref as a prop
+ * instead of passing it to a function during render.
+ */
+export function PaneTabBarSlot(props: { pane: ChatViewPane; controls: PaneTabBarControls | null }) {
+  return props.pane.renderTabBar(props.controls);
+}
 
 export function PaneTabBar(props: {
   pane: SplitPane;
