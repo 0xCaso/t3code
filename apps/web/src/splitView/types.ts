@@ -1,4 +1,4 @@
-import type { ReactNode, RefObject } from "react";
+import type { ReactNode, RefCallback } from "react";
 
 /** Window-level containers the active pane portals its chrome into. */
 export interface SplitViewSlots {
@@ -10,7 +10,7 @@ export interface SplitViewSlots {
 export interface PaneTabBarControls {
   readonly toggleThreadDetails: () => void;
   /** Attach to the tab bar: the thread details popover anchors to it and takes its width. */
-  readonly threadDetailsAnchorRef: RefObject<HTMLElement | null>;
+  readonly threadDetailsAnchorRef: RefCallback<HTMLElement>;
 }
 
 export interface ChatViewPane {

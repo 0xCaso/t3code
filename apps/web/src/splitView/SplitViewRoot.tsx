@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { Fragment, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useLayoutEffect, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 import { SidebarInset } from "../components/ui/sidebar";
@@ -54,6 +54,7 @@ export function SplitViewRoot({ routeTarget }: { routeTarget: ThreadRouteTarget 
     const state = useSplitLayoutStore.getState();
     const action = reconcileRoute({
       layout: state.layout,
+      // oxlint-disable-next-line react/exhaustive-effect-dependencies -- routeTarget is identified by routeKey.
       routeTarget,
       lastRouteKey: lastRouteKeyRef.current,
       openRouteIn: state.openRouteIn,
@@ -66,26 +67,31 @@ export function SplitViewRoot({ routeTarget }: { routeTarget: ThreadRouteTarget 
     } else if (action.kind === "navigate") {
       void navigateToTab(navigate, action.tab);
     }
-    // routeTarget is identified by routeKey.
   }, [routeKey, layout, navigate, maxColumns]);
   const activePaneId = layout?.activePaneId;
-  // Also runs on activation: a pane activated from the sidebar or the parked chip may be parked.
   useLayoutEffect(() => {
     if (workspaceWidth <= 0) return;
     const state = useSplitLayoutStore.getState();
     state.setCapacity({ visibleColumnCount: visibleCount, maxColumns });
     state.fitColumns(visibleCount);
-  }, [activePaneId, maxColumns, visibleCount, workspaceWidth]);
+  }, [
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Also runs on activation: a pane activated from the sidebar or the parked chip may be parked.
+    activePaneId,
+    maxColumns,
+    visibleCount,
+    workspaceWidth,
+  ]);
 
   // Resizing replaces `columns` but keeps parked column objects. useShallow hands back the previous
   // array while its elements are unchanged: a new reference would re-render the chip pane's ChatView per frame.
   const parkedColumns = useSplitLayoutStore(
     useShallow((state) => state.layout?.columns.slice(visibleCount) ?? NO_PARKED_COLUMNS),
   );
-  const slots = useMemo<SplitViewSlots>(
-    () => ({ header: headerSlot, terminal: terminalSlot, rightPanel: rightPanelSlot }),
-    [headerSlot, terminalSlot, rightPanelSlot],
-  );
+  const slots: SplitViewSlots = {
+    header: headerSlot,
+    terminal: terminalSlot,
+    rightPanel: rightPanelSlot,
+  };
 
   if (!layout) return <SidebarInset className={INSET_CLASS_NAME} />;
 

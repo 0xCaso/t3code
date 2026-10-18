@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { memo, useCallback, useMemo } from "react";
+import { memo } from "react";
 
 import { ThreadTargetView, type ThreadTargetNavigation } from "../components/ThreadRouteView";
 import { cn } from "../lib/utils";
@@ -37,49 +37,40 @@ export const SplitPane = memo(function SplitPane(props: {
   const tab = paneActiveTab(pane);
   const tabKey = paneTabKey(tab);
 
-  const activate = useCallback(() => {
+  const activate = () => {
     useSplitLayoutStore.getState().update((layout) => activatePane(layout, pane.id));
-  }, [pane.id]);
-  const activateByPointer = useCallback(() => {
+  };
+  const activateByPointer = () => {
     setPaneActivatedByKeyboard(false);
     activate();
-  }, [activate]);
+  };
 
-  const onNavigate = useCallback(
-    (next: ThreadTargetNavigation) => {
-      const store = useSplitLayoutStore.getState();
-      if (next.kind === "thread") {
-        if (active) {
-          void navigate({
-            to: "/$environmentId/$threadId",
-            params: buildThreadRouteParams(next.threadRef),
-            replace: true,
-          });
-        } else {
-          store.update((layout) =>
-            retargetTab(layout, tabKey, { kind: "server", threadRef: next.threadRef }),
-          );
-        }
-        return;
+  const onNavigate = (next: ThreadTargetNavigation) => {
+    const store = useSplitLayoutStore.getState();
+    if (next.kind === "thread") {
+      if (active) {
+        void navigate({
+          to: "/$environmentId/$threadId",
+          params: buildThreadRouteParams(next.threadRef),
+          replace: true,
+        });
+      } else {
+        store.update((layout) =>
+          retargetTab(layout, tabKey, { kind: "server", threadRef: next.threadRef }),
+        );
       }
-      const remaining = store.layout ? closeThread(store.layout, tabKey) : null;
-      // Route sync follows the new active tab; with nothing left, behave as a lone thread view.
-      if (remaining) store.setLayout(remaining);
-      else if (next.redirectHome) void navigate({ to: "/", replace: true });
-    },
-    [active, navigate, tabKey],
-  );
+      return;
+    }
+    const remaining = store.layout ? closeThread(store.layout, tabKey) : null;
+    // Route sync follows the new active tab; with nothing left, behave as a lone thread view.
+    if (remaining) store.setLayout(remaining);
+    else if (next.redirectHome) void navigate({ to: "/", replace: true });
+  };
 
-  const renderTabBar = useCallback(
-    (controls: PaneTabBarControls | null) => (
-      <PaneTabBar pane={pane} controls={controls} parkedColumns={parkedColumns} />
-    ),
-    [pane, parkedColumns],
+  const renderTabBar = (controls: PaneTabBarControls | null) => (
+    <PaneTabBar pane={pane} controls={controls} parkedColumns={parkedColumns} />
   );
-  const chromeProps = useMemo(
-    () => ({ active, slots, rightPanelPresentation, renderTabBar }),
-    [active, slots, rightPanelPresentation, renderTabBar],
-  );
+  const chromeProps = { active, slots, rightPanelPresentation, renderTabBar };
 
   return (
     <PaneInteractiveContext value={!chrome || active}>

@@ -59,9 +59,7 @@ export function PaneTabBar(props: {
     <div
       data-split-tabbar
       // The thread details popover anchors to the whole bar: it takes the anchor's width.
-      ref={(node) => {
-        if (controls) controls.threadDetailsAnchorRef.current = node;
-      }}
+      ref={controls?.threadDetailsAnchorRef}
       className="flex h-8 min-h-8 shrink-0 items-center gap-1 border-b border-border px-1"
     >
       <div role="tablist" className="flex min-w-0 flex-1 items-center gap-0.5">

@@ -26,7 +26,7 @@ export function ColumnDivider(props: { index: number; gridWidthPx: number }) {
     };
     const onMove = (move: PointerEvent) => {
       latestX = move.clientX;
-      frame ??= requestAnimationFrame(apply);
+      if (frame === null) frame = requestAnimationFrame(apply);
     };
     const finish = () => {
       element.removeEventListener("pointermove", onMove);
