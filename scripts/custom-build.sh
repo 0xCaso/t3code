@@ -71,6 +71,9 @@ export PATH="$PWD/node_modules/.bin:$HOME/.nvm/versions/node/v24.21.0/bin:$PATH"
 export CPLUS_INCLUDE_PATH="$(xcrun --show-sdk-path)/usr/include/c++/v1"
 # sysinfo needs rustc 1.95; the default stable toolchain here is older.
 RUSTUP_TOOLCHAIN=1.95.0 T3CODE_DESKTOP_VERSION="$version" vp run dist:desktop:dmg:arm64
+# The web build rewrites the generated route tree; keep the committed one so the
+# nightly sync finds a clean tree.
+git checkout -- apps/web/src/routeTree.gen.ts
 
 dmg="release/T3-Code-$version-arm64.dmg"
 [ -f "$dmg" ] || { echo "build finished but $dmg is missing" >&2; exit 1; }
