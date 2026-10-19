@@ -67,6 +67,9 @@ export function isSameSchedule(a: ScheduledTaskSchedule, b: ScheduledTaskSchedul
 }
 
 const MISSED_FIXED_TIME_GRACE_MS = 10 * MINUTE_MS;
+// Fork: a morning run missed while the Mac slept or the app was closed still
+// starts before noon, so a daily brief comes late instead of a day later.
+const MISSED_FIXED_TIME_CATCH_UP_BEFORE_HOUR = 12;
 
 export function isMissedFixedTimeRun(
   schedule: ScheduledTaskSchedule,
@@ -74,7 +77,29 @@ export function isMissedFixedTimeRun(
   now: DateTime.DateTime,
 ): boolean {
   if (schedule.type !== "fixed_time") return false;
-  return DateTime.toEpochMillis(now) - DateTime.toEpochMillis(dueAt) > MISSED_FIXED_TIME_GRACE_MS;
+  if (DateTime.toEpochMillis(now) - DateTime.toEpochMillis(dueAt) <= MISSED_FIXED_TIME_GRACE_MS) {
+    return false;
+  }
+  return !hasMorningSlotToday(schedule, now);
+}
+
+// `now` is zoned to the environment's time zone, so its parts are local.
+function hasMorningSlotToday(
+  schedule: Extract<ScheduledTaskSchedule, { type: "fixed_time" }>,
+  now: DateTime.DateTime,
+): boolean {
+  const time = parseTimeOfDay(schedule.timeOfDay);
+  if (time === null) return false;
+  const parts = DateTime.toParts(now);
+  if (parts.hour >= MISSED_FIXED_TIME_CATCH_UP_BEFORE_HOUR) return false;
+  if (
+    schedule.weekdays &&
+    schedule.weekdays.length > 0 &&
+    !schedule.weekdays.includes(parts.weekDay)
+  ) {
+    return false;
+  }
+  return parts.hour * 60 + parts.minute >= time.hour * 60 + time.minute;
 }
 
 function describeSchedule(schedule: ScheduledTaskSchedule): string {
