@@ -6,6 +6,7 @@
 #   scripts/custom-build.sh v0.0.46-nightly.20261015.3145   build, then install
 #   scripts/custom-build.sh --install                       install a pending build
 #   scripts/custom-build.sh --on-quit                       install a pending build, then reopen
+#   scripts/custom-build.sh --setup-signing                 create the signing certificate once
 #
 # The tag only sets the base version (0.0.46). The build is versioned
 # <base>-preview.<today>.<n>, which names it "Custom" and ships it without an
@@ -13,11 +14,76 @@
 # posts a notification. The LaunchAgent com.0xcaso.t3code-custom-install runs
 # --on-quit every 10 seconds: once you quit the app, it installs the pending
 # build and opens it again. The three newest DMGs are kept.
+#
+# macOS keeps privacy permissions (disk access, folders, keychain) per code
+# signature. An ad-hoc signature changes with every build, so each update
+# asked for them again. Builds are signed with one self-signed certificate
+# instead, kept in its own keychain so the nightly build never prompts.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 app="/Applications/T3 Code (Custom).app"
 pending="release/pending/T3 Code (Custom).app"
+signing_keychain="$HOME/Library/Keychains/t3code-custom-signing.keychain-db"
+signing_password_file="$HOME/.config/t3code-custom/signing-keychain-password"
+signing_identity="T3 Code (Custom) Signing"
+
+setup_signing() {
+  if [ -f "$signing_keychain" ]; then
+    echo "signing keychain already exists: $signing_keychain"
+    return 0
+  fi
+  local work password
+  work="$(mktemp -d /tmp/t3-custom-signing.XXXX)"
+  mkdir -p "$(dirname "$signing_password_file")"
+  password="$(/usr/bin/openssl rand -hex 24)"
+  (umask 077 && printf '%s' "$password" >"$signing_password_file")
+  cat >"$work/cert.cnf" <<EOF
+[req]
+distinguished_name=dn
+x509_extensions=ext
+prompt=no
+[dn]
+CN=$signing_identity
+[ext]
+basicConstraints=critical,CA:false
+keyUsage=critical,digitalSignature
+extendedKeyUsage=critical,codeSigning
+EOF
+  /usr/bin/openssl req -x509 -newkey rsa:2048 -nodes -days 7300 -config "$work/cert.cnf" \
+    -keyout "$work/key.pem" -out "$work/cert.pem" 2>/dev/null
+  /usr/bin/openssl pkcs12 -export -inkey "$work/key.pem" -in "$work/cert.pem" \
+    -out "$work/identity.p12" -passout "pass:$password"
+  security create-keychain -p "$password" "$signing_keychain"
+  security set-keychain-settings "$signing_keychain"
+  security unlock-keychain -p "$password" "$signing_keychain"
+  security import "$work/identity.p12" -k "$signing_keychain" -P "$password" -T /usr/bin/codesign >/dev/null
+  # Lets codesign use the key without a keychain prompt.
+  security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$password" "$signing_keychain" >/dev/null
+  rm -rf "$work"
+  echo "created $signing_identity in $signing_keychain"
+}
+
+sign_app() {
+  if [ ! -f "$signing_keychain" ]; then
+    echo "warning: no signing keychain, keeping the ad-hoc signature; run --setup-signing" >&2
+    return 0
+  fi
+  security unlock-keychain -p "$(cat "$signing_password_file")" "$signing_keychain"
+  # codesign only finds identities in keychains on the search list, so add ours
+  # for the signing only; leaving a locked keychain there can prompt other apps.
+  local original=()
+  while IFS= read -r keychain; do
+    keychain="${keychain#"${keychain%%[![:space:]]*}"}"
+    original+=("${keychain//\"/}")
+  done < <(security list-keychains -d user)
+  security list-keychains -d user -s "${original[@]}" "$signing_keychain"
+  local status=0
+  codesign --force --deep --keychain "$signing_keychain" --sign "$signing_identity" "$1" || status=$?
+  security list-keychains -d user -s "${original[@]}"
+  security lock-keychain "$signing_keychain"
+  return "$status"
+}
 
 # -a: the nightly task runs inside the app, and pgrep skips its own ancestors by default.
 # The pattern is a regex, so the parentheses in the app name are escaped.
@@ -56,6 +122,16 @@ case "${1:-}" in
     install_pending && /usr/bin/open "$app"
     exit 0
     ;;
+  --setup-signing)
+    setup_signing
+    # Sign a build that is already waiting; the rename keeps the LaunchAgent off it meanwhile.
+    if [ -d "$pending" ] && mv "$pending" "release/signing.$$" 2>/dev/null; then
+      sign_app "release/signing.$$"
+      mv "release/signing.$$" "$pending"
+      echo "signed the pending build"
+    fi
+    exit 0
+    ;;
 esac
 
 tag="${1:?usage: scripts/custom-build.sh <nightly tag> | --install | --on-quit}"
@@ -91,6 +167,7 @@ rm -rf "$staging"
 ditto "$mountpoint/T3 Code (Custom).app" "$staging"
 hdiutil detach "$mountpoint" >/dev/null
 rmdir "$mountpoint"
+sign_app "$staging"
 rm -rf "$pending"
 mkdir -p "$(dirname "$pending")"
 mv "$staging" "$pending"
