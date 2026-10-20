@@ -142,7 +142,8 @@ n=1
 while [ -e "release/T3-Code-$base-preview.$day.$n-arm64.dmg" ]; do n=$((n + 1)); done
 version="$base-preview.$day.$n"
 
-export PATH="$PWD/node_modules/.bin:$HOME/.nvm/versions/node/v24.21.0/bin:$PATH"
+# vite-plus pnpm first: an older nvm Node can shadow it with a corepack pnpm that fails.
+export PATH="$PWD/node_modules/.bin:$HOME/.local/share/vite-plus/fallback-bin:$HOME/.nvm/versions/node/v24.21.0/bin:$PATH"
 # Stale C++ headers in the Command Line Tools break node-pty; use the SDK's.
 export CPLUS_INCLUDE_PATH="$(xcrun --show-sdk-path)/usr/include/c++/v1"
 # sysinfo needs rustc 1.95; the default stable toolchain here is older.
