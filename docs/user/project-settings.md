@@ -70,6 +70,9 @@ environment's time zone, which may differ from your phone's.
 A fixed-time run missed because the environment was asleep or closed still
 starts when it comes back, if that is before noon on a scheduled day.
 
+Deleting a thread also deletes tasks that post into that thread. Tasks that start
+a new thread on each run survive deletion of their previous threads.
+
 You can edit, pause, resume, run immediately, or delete a task from the list.
 Webhook tasks only run when their URL is called, so they can't be run
 immediately.
