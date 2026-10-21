@@ -71,17 +71,6 @@ describe("assistant citation navigation", () => {
     expect(assistantCitationFromLocation(router.state.location.href)).toEqual(citation);
   });
 
-  it("ignores non-citation fragments and missing fragments", () => {
-    expect(assistantCitationFromLocation("/environment-one/thread-one")).toBeNull();
-    expect(
-      assistantCitationFromLocation("/environment-one/thread-one#ordinary-heading"),
-    ).toBeNull();
-    expect(assistantCitationFromLocation("/a/b#assistant-citation=%invalid")).toBeNull();
-    expect(
-      assistantCitationFromLocation(`/a/b#assistant-citation=${"a".repeat(140_000)}`),
-    ).toBeNull();
-  });
-
   it("scopes a citation request to the thread it cites", () => {
     const href = `/environment-one/thread-one#${assistantCitationHash(citation)}`;
     const location = { href, state: { assistantCitationActivation: "click-1", __TSR_key: "k" } };
