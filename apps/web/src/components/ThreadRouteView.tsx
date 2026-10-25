@@ -35,11 +35,9 @@ export type ThreadTargetNavigation =
   | { readonly kind: "gone"; readonly redirectHome: boolean };
 
 /**
- * The chat surface for one thread or draft, rendered inside a pane. Whoever
- * mounts it decides what navigating means (a route change, or a tab update in
- * an inactive pane) and receives those requests through `onNavigate`.
- * Plain server threads are unkeyed, so moving between them reuses one
- * instance as ChatView expects.
+ * One thread or draft inside a pane. The host decides what navigating means (a
+ * route change, or a tab update in an inactive pane). Plain server threads are
+ * unkeyed, so moving between them reuses one ChatView instance.
  */
 export function ThreadTargetView({
   target,

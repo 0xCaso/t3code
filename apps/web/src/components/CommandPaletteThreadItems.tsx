@@ -1,11 +1,23 @@
-import { scopeThreadRef } from "@t3tools/client-runtime/environment";
-import { threadSearchMatchKey } from "@t3tools/client-runtime/state/thread-search";
+import { scopedThreadKey, scopeThreadRef } from "@t3tools/client-runtime/environment";
+import { findForMessageMatch, requestThreadFindQuery } from "./chat/threadFindActionBus";
+import {
+  claimThreadOpen,
+  nextShownOrder,
+  type EnvironmentThreadSearchMatch,
+  type ShownOrder,
+} from "@t3tools/client-runtime/state/thread-search";
+import {
+  foldSearchQuery,
+  PALETTE_MESSAGE_LIMIT,
+  pickedQuery,
+  rankMessageMatches,
+} from "@t3tools/shared/paletteSearch";
 import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import { useAtomValue } from "@effect/atom-react";
 import { useNavigate } from "@tanstack/react-router";
 import { MessageSquareIcon } from "lucide-react";
+import { useState } from "react";
 
-import { useClientSettings } from "../hooks/useSettings";
 import {
   applyProviderInstanceSettings,
   deriveProviderInstanceEntries,
@@ -20,8 +32,10 @@ import {
 import { useThreadSearch } from "../state/queries";
 import { primaryServerProvidersAtom } from "../state/server";
 import { openThreadInSplit } from "../splitView/splitLayoutStore";
+import { threadEnvironment } from "../state/threads";
+import { useAtomCommand } from "../state/use-atom-command";
 import { buildThreadRouteParams } from "../threadRoutes";
-import type { SidebarThreadSummary } from "../types";
+import { formatRelativeTimeLabel } from "../timestampFormat";
 import { buildThreadActionItems, ITEM_ICON_CLASS } from "./CommandPalette.logic";
 import { useEnvironmentLookups, useProjectLookups } from "./CommandPaletteLookups";
 import { ThreadCommandSubtitle } from "./ThreadCommandSubtitle";
@@ -54,48 +68,77 @@ function useProviderEntryByEnvironmentAndInstanceId() {
   );
 }
 
-function useThreadSearchWithContentMatches(query: string) {
+function useConnectedThreadSearch(query: string) {
   const { environments } = useEnvironments();
   const environmentIds: ReadonlyArray<EnvironmentId> = environments
     .filter((environment) => environment.connection.phase === "connected")
     .map((environment) => environment.environmentId);
-  const threadSearch = useThreadSearch(environmentIds, query);
-  const contentMatchByKey = new Map(
-    threadSearch.matches.flatMap((match) =>
-      match.source === "user" || match.source === "assistant"
-        ? [[threadSearchMatchKey(match), match] as const]
-        : [],
-    ),
-  );
-  return { threadSearch, contentMatchByKey };
+  return useThreadSearch(environmentIds, query);
 }
 
 /**
- * Every thread as a palette item, with message matches for a non-empty `threadSearchQuery`.
+ * Every visible thread as a palette item, plus, for a non-empty
+ * `threadSearchQuery`, the threads whose messages match, best first.
  * With an open split view, the same items also open a thread in a new tab or column.
  */
 export function useCommandPaletteThreadItems(input: {
-  readonly activeThreadId: ThreadId | undefined;
+  readonly activeThread: { readonly environmentId: EnvironmentId; readonly id: ThreadId } | null;
   readonly threadSearchQuery: string;
   readonly splitPaneCount: number;
 }) {
-  const { activeThreadId, threadSearchQuery, splitPaneCount } = input;
+  const { activeThread, threadSearchQuery, splitPaneCount } = input;
   const navigate = useNavigate();
   const threads = useThreadShells();
-  const sidebarThreadSortOrder = useClientSettings((settings) => settings.sidebarThreadSortOrder);
   const { projectEnvironmentLocationById } = useEnvironmentLookups();
   const providerEntryByEnvironmentAndInstanceId = useProviderEntryByEnvironmentAndInstanceId();
-  const { threadSearch, contentMatchByKey } = useThreadSearchWithContentMatches(threadSearchQuery);
-  const { projectByKey, projectTitleById } = useProjectLookups();
+  const messageSearch = useConnectedThreadSearch(threadSearchQuery);
+  const { projectByKey } = useProjectLookups();
+  const visitThread = useAtomCommand(threadEnvironment.visit, { reportFailure: false });
+  // Ranking is relative to when the palette opened, so rows do not reorder as time passes.
+  const [now] = useState(() => Date.now());
 
-  const buildThreadItems = (
-    runThread: (thread: Pick<SidebarThreadSummary, "environmentId" | "id">) => Promise<void>,
-  ) =>
+  const { environments } = useEnvironments();
+  type PaletteThread = (typeof threads)[number];
+  const navigateToThread = async (thread: PaletteThread) => {
+    // A pick sends its open with the query, always, so the server records
+    // it; the thread view then skips its own open. The open thread is no pick.
+    const isOpen =
+      activeThread?.environmentId === thread.environmentId && activeThread.id === thread.id;
+    if (threadSearchQuery.trim().length > 0 && !threadSearchQuery.startsWith(">") && !isOpen) {
+      claimThreadOpen(thread.environmentId, thread.id, Date.now());
+    }
+    if (
+      threadSearchQuery.trim().length > 0 &&
+      !threadSearchQuery.startsWith(">") &&
+      thread.lastVisitedAt !== undefined &&
+      !isOpen
+    ) {
+      void visitThread({
+        environmentId: thread.environmentId,
+        input: {
+          threadId: thread.id,
+          visitedAt: thread.updatedAt,
+          opened: true,
+          searchQuery: pickedQuery(threadSearchQuery),
+        },
+      });
+    }
+    await navigate({
+      to: "/$environmentId/$threadId",
+      params: buildThreadRouteParams(scopeThreadRef(thread.environmentId, thread.id)),
+    });
+  };
+  const buildThreadItems = (runThread: (thread: PaletteThread) => Promise<void>) =>
     buildThreadActionItems({
       threads,
-      ...(activeThreadId ? { activeThreadId } : {}),
-      projectTitleById,
-      sortOrder: sidebarThreadSortOrder,
+      ...(environments.length > 1
+        ? {
+            environmentLabelOf: (thread: PaletteThread) =>
+              projectEnvironmentLocationById.get(thread.environmentId)?.label ?? null,
+          }
+        : {}),
+      ...(activeThread ? { activeThread } : {}),
+      projectByKey,
       icon: <MessageSquareIcon className={ITEM_ICON_CLASS} />,
       renderLeadingContent: (thread) => <ThreadRowLeadingStatus thread={thread} />,
       renderTrailingContent: (thread) => (
@@ -124,7 +167,9 @@ export function useCommandPaletteThreadItems(input: {
             }
             branch={thread.branch}
             worktreePath={thread.worktreePath}
-            isCurrent={thread.id === activeThreadId}
+            isCurrent={
+              thread.id === activeThread?.id && thread.environmentId === activeThread.environmentId
+            }
             driverKind={providerEntry?.driverKind ?? null}
             providerDisplayName={
               thread.runtime?.providerName ?? providerEntry?.displayName ?? modelInstanceId
@@ -134,29 +179,8 @@ export function useCommandPaletteThreadItems(input: {
           />
         );
       },
-      getContentMatch: (thread) => {
-        const match = contentMatchByKey.get(
-          threadSearchMatchKey({
-            environmentId: thread.environmentId,
-            threadId: thread.id,
-          }),
-        );
-        return match && (match.source === "user" || match.source === "assistant")
-          ? {
-              source: match.source,
-              snippet: match.snippet,
-              query: threadSearch.query,
-            }
-          : undefined;
-      },
       runThread,
     });
-  const navigateToThread = async (thread: Pick<SidebarThreadSummary, "environmentId" | "id">) => {
-    await navigate({
-      to: "/$environmentId/$threadId",
-      params: buildThreadRouteParams(scopeThreadRef(thread.environmentId, thread.id)),
-    });
-  };
   const threadItems = buildThreadItems(navigateToThread);
   const splitThreadItemsFor = (where: "tab" | "column") =>
     splitPaneCount === 0
@@ -170,10 +194,64 @@ export function useCommandPaletteThreadItems(input: {
           await navigateToThread(thread);
         });
 
+  const itemByValue = new Map(threadItems.map((item) => [item.value, item]));
+  const itemForMatch = (match: EnvironmentThreadSearchMatch) =>
+    itemByValue.get(`thread:${match.environmentId}:${match.threadId}`);
+  const rankedMessageItems = rankMessageMatches(
+    messageSearch.matches,
+    (match) => itemForMatch(match)?.threadSearch,
+    foldSearchQuery(threadSearchQuery),
+    now,
+    { withoutTitleMatches: true },
+  ).flatMap((match) => {
+    const item = itemForMatch(match);
+    if (!item) return [];
+    // The snippet replaces the project line, so a message row is as tall as a title row.
+    const { description: _description, ...rest } = item;
+    return [
+      {
+        ...rest,
+        // When the matching message was written, not when the thread last moved.
+        ...(match.messageCreatedAt
+          ? { timestamp: formatRelativeTimeLabel(match.messageCreatedAt) }
+          : {}),
+        threadContentMatch: {
+          source: match.source,
+          snippet: match.snippet,
+          query: messageSearch.query,
+        },
+        // Opens the thread with find on the word at the matched message, so it is in view.
+        run: async () => {
+          await item.run();
+          requestThreadFindQuery(
+            scopedThreadKey(scopeThreadRef(match.environmentId, match.threadId)),
+            findForMessageMatch(match, messageSearch.query),
+          );
+        },
+      },
+    ];
+  });
+
+  // Rows already shown keep their places when a slower environment answers.
+  const [shownOrder, setShownOrder] = useState<ShownOrder | null>(null);
+  const order = nextShownOrder(
+    shownOrder,
+    messageSearch.query,
+    rankedMessageItems.map((item) => item.value),
+    PALETTE_MESSAGE_LIMIT,
+  );
+  if (order !== shownOrder) setShownOrder(order);
+  const messageItemByValue = new Map(rankedMessageItems.map((item) => [item.value, item]));
+  const threadMessageItems = order.keys
+    .slice(0, order.shown)
+    .flatMap((value) => messageItemByValue.get(value) ?? []);
+
   return {
     threadItems,
+    threadMessageItems,
     splitTabThreadItems: splitThreadItemsFor("tab"),
     splitColumnThreadItems: splitThreadItemsFor("column"),
-    isSearchPending: threadSearch.isPending,
+    now,
+    isSearchPending: messageSearch.isPending,
   };
 }
