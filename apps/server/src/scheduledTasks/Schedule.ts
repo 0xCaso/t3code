@@ -96,23 +96,3 @@ function hasMorningSlotToday(
   }
   return parts.hour * 60 + parts.minute >= time.hour * 60 + time.minute;
 }
-
-function describeSchedule(schedule: ScheduledTaskSchedule): string {
-  if (schedule.type === "webhook") return "On webhook";
-  if (schedule.type === "interval") {
-    const minutes = schedule.everyMs / MINUTE_MS;
-    if (Number.isInteger(minutes)) {
-      return `Every ${minutes === 1 ? "minute" : `${minutes} minutes`}`;
-    }
-    return `Every ${Math.round(schedule.everyMs / 1000)} seconds`;
-  }
-
-  const weekdayCount = schedule.weekdays?.length ?? 0;
-  const days =
-    weekdayCount === 0
-      ? "day"
-      : weekdayCount === 5 && schedule.weekdays?.every((day) => day >= 1 && day <= 5)
-        ? "weekday"
-        : "selected day";
-  return `At ${schedule.timeOfDay} every ${days}`;
-}

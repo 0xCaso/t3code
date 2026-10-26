@@ -1,9 +1,10 @@
 import { scopedThreadKey } from "@t3tools/client-runtime/environment";
 import type { ScopedThreadRef } from "@t3tools/contracts";
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 import ChatView from "./ChatView";
+import { BackgroundThreadContext } from "./chat/backgroundThread";
 import { resolveDraftPromotionNavigationTarget, threadHasStarted } from "./ChatView.logic";
 import { waitForDraftHeroTransition } from "./chat/draftHeroTransition";
 import {
@@ -48,6 +49,8 @@ export function ThreadTargetView({
   onNavigate: (next: ThreadTargetNavigation) => void;
   pane?: ChatViewPane;
 }) {
+  // Kept mounted under Settings or Usage: it asks for no navigation until it is shown again.
+  const background = use(BackgroundThreadContext);
   const draftId = target.kind === "draft" ? target.draftId : null;
   const draftSession = useComposerDraftStore((store) =>
     draftId === null ? null : store.getDraftSession(draftId),
@@ -134,7 +137,7 @@ export function ThreadTargetView({
   }, [draftSession?.promotedTo, inferredThreadRef]);
 
   useEffect(() => {
-    if (!canonicalThreadRef) {
+    if (!canonicalThreadRef || background) {
       return;
     }
     let cancelled = false;
@@ -147,14 +150,14 @@ export function ThreadTargetView({
     return () => {
       cancelled = true;
     };
-  }, [canonicalThreadRef, onNavigate]);
+  }, [background, canonicalThreadRef, onNavigate]);
 
   useEffect(() => {
-    if (target.kind !== "draft" || draftSession || canonicalThreadRef) {
+    if (background || target.kind !== "draft" || draftSession || canonicalThreadRef) {
       return;
     }
     onNavigate({ kind: "gone", redirectHome: true });
-  }, [canonicalThreadRef, draftSession, onNavigate, target.kind]);
+  }, [background, canonicalThreadRef, draftSession, onNavigate, target.kind]);
 
   useEffect(() => {
     if (target.kind !== "server" || !bootstrapComplete) {
@@ -163,9 +166,9 @@ export function ThreadTargetView({
     if (renderState === "missing") {
       const { clearPendingFileDropsForThread } = useSidebarPendingFileDropStore.getState();
       clearPendingFileDropsForThread(target.threadRef);
-      onNavigate({ kind: "gone", redirectHome: environmentHasAnyThreads });
+      if (!background) onNavigate({ kind: "gone", redirectHome: environmentHasAnyThreads });
     }
-  }, [bootstrapComplete, environmentHasAnyThreads, onNavigate, renderState, target]);
+  }, [background, bootstrapComplete, environmentHasAnyThreads, onNavigate, renderState, target]);
 
   useEffect(() => {
     if (target.kind !== "server" || !serverThreadStarted || !draftThread) {
