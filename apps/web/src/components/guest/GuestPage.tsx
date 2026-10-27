@@ -390,15 +390,11 @@ function GuestThread({
     deriveActiveWorkStartedAt(activityRun, runtime, null) ?? runlessWorkStartedAt;
   const runningRunId = runtime?.activeRunId ?? null;
   const follow = useTimelineFollow({
-    // The guest page is never a split pane.
-    interactive: true,
     legendListRef: listRef,
     composerRef: NO_COMPOSER,
-    composerOverlayElement: null,
     composerTimelineInset: 0,
     routeThreadKey: threadKey,
     activeThreadKey: threadKey,
-    activeThreadId: undefined,
     // Not a server thread: new turns follow the end instead of anchoring near the top.
     isServerThread: false,
     serverProjection: null,
@@ -478,8 +474,7 @@ function GuestThread({
           emptyPlaceholderInset={0}
           liveFollowEnabled={follow.timelineLiveFollowEnabled}
           onIsAtEndChange={follow.onIsAtEndChangeStable}
-          onManualNavigation={follow.cancelTimelineLiveFollowForUserNavigationStable}
-          cancelPositionRestoreRef={follow.cancelPositionRestoreRef}
+          onViewportAttach={follow.attachTimelineViewport}
           footer={
             unplaced.length === 0 ? null : (
               <ol ref={footerRef} className="chat-content-lane flex flex-col gap-4 pb-4">
@@ -493,7 +488,11 @@ function GuestThread({
           }
         />
         {follow.showScrollToBottom ? (
-          <ScrollToEndButton bottom={4} onScrollToEnd={() => follow.scrollToEnd(true)} />
+          <ScrollToEndButton
+            summary={null}
+            bottom={4}
+            onScrollToEnd={() => follow.scrollToEnd(true)}
+          />
         ) : null}
       </div>
       <div className={cn(LANE, "shrink-0 pb-4")}>
