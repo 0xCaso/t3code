@@ -58,7 +58,7 @@ export function SplitViewRoot({
   const maxColumns = maxColumnsForWidth(workspaceWidth);
 
   // Layout effect: the persisted layout never paints a frame on the wrong thread.
-  // oxlint-disable-next-line t3code/react-effect-budget -- syncs the router and the layout store both ways.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- syncs the router and the layout store both ways.
   useLayoutEffect(() => {
     if (background) return;
     const state = useSplitLayoutStore.getState();
@@ -79,7 +79,7 @@ export function SplitViewRoot({
     }
   }, [background, routeKey, layout, navigate, maxColumns]);
   const activePaneId = layout?.activePaneId;
-  // oxlint-disable-next-line t3code/react-effect-budget -- feeds the measured width into the layout store.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- feeds the measured width into the layout store.
   useLayoutEffect(() => {
     if (workspaceWidth <= 0) return;
     const state = useSplitLayoutStore.getState();
@@ -178,7 +178,7 @@ function navigateToTab(navigate: ReturnType<typeof useNavigate>, tab: PaneTab) {
 function useMeasuredWidth() {
   const [element, setElement] = useState<HTMLDivElement | null>(null);
   const [width, setWidth] = useState(0);
-  // oxlint-disable-next-line t3code/react-effect-budget -- subscribes to a ResizeObserver.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- subscribes to a ResizeObserver.
   useLayoutEffect(() => {
     if (!element) return;
     return observeResize(element, (entries) => {

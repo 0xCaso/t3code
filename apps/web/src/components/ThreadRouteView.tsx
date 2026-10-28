@@ -105,6 +105,7 @@ export function ThreadTargetView({
   const navigateTo = useEffectEvent(onNavigate);
   // Draft promotion runs in the draft store. Follow the redirect it leaves behind,
   // or leave a draft that is gone.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- follows the draft store's promotion redirect through onNavigate
   useEffect(() => {
     if (background || target.kind !== "draft" || draftSession) return;
     navigateTo(
@@ -114,6 +115,7 @@ export function ThreadTargetView({
     );
   }, [background, draftRedirect, draftSession, target.kind]);
 
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- clears pending file drops and leaves through onNavigate once a server thread is confirmed missing
   useEffect(() => {
     if (target.kind !== "server" || !bootstrapComplete) {
       return;

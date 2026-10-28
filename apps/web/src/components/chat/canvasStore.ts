@@ -85,7 +85,6 @@ export function resolveChatCanvasModel({
   threadRef,
   preview,
   detailsCardInlineOpen,
-  centerBesideDetails,
   keepChatCentered = false,
 }: {
   measurements: ChatCanvasMeasurements;
@@ -94,7 +93,6 @@ export function resolveChatCanvasModel({
   threadRef: ScopedThreadRef | null;
   preview: ChatCanvasPreview | null;
   detailsCardInlineOpen: boolean;
-  centerBesideDetails: boolean;
   /** Split view panes: chat never moves, so the card pins only beside the centered chat. */
   keepChatCentered?: boolean;
 }) {
@@ -146,7 +144,6 @@ export function resolveChatCanvasModel({
     composerHeight: measurements.composerHeight,
     detailsCard,
     findBar,
-    centerBesideDetails,
   });
   const detailsCardPlacement = resolveThreadDetailsCardLayout({
     container,
