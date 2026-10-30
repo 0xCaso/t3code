@@ -9,7 +9,7 @@ import {
 } from "./splitLayout";
 
 /** Share of the pane body each edge zone takes (stima, tune by feel). */
-export const EDGE_ZONE_FRACTION = 0.22;
+const EDGE_ZONE_FRACTION = 0.22;
 
 export interface Rect {
   readonly left: number;

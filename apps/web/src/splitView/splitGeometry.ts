@@ -1,7 +1,7 @@
 import { MAX_COLUMNS, findPane, type SplitLayout } from "./splitLayout";
 
 /** Narrowest a column may get, and the room a new column needs (stima). */
-export const MIN_COLUMN_WIDTH_PX = 400;
+const MIN_COLUMN_WIDTH_PX = 400;
 
 export function maxColumnsForWidth(widthPx: number): number {
   return Math.min(MAX_COLUMNS, Math.max(1, Math.floor(widthPx / MIN_COLUMN_WIDTH_PX)));

@@ -42,7 +42,7 @@ interface PanePosition {
   readonly pane: SplitPane;
 }
 
-export function makeSplitId(prefix: "column" | "pane"): string {
+function makeSplitId(prefix: "column" | "pane"): string {
   return `${prefix}-${randomUUID()}`;
 }
 
@@ -62,7 +62,7 @@ function newColumn(pane: SplitPane, width: number): SplitColumn {
   return { id: makeSplitId("column"), panes: [pane], width };
 }
 
-export function equalizeWidths(columns: ReadonlyArray<SplitColumn>): ReadonlyArray<SplitColumn> {
+function equalizeWidths(columns: ReadonlyArray<SplitColumn>): ReadonlyArray<SplitColumn> {
   return columns.map((column) => ({ ...column, width: 1 / columns.length }));
 }
 
@@ -90,7 +90,7 @@ export function findPane(layout: SplitLayout, paneId: string): PanePosition | nu
   return null;
 }
 
-export function activePane(layout: SplitLayout): SplitPane {
+function activePane(layout: SplitLayout): SplitPane {
   const pane = findPane(layout, layout.activePaneId)?.pane ?? allPanes(layout)[0];
   if (!pane) throw new Error("A split layout always has a pane.");
   return pane;
@@ -151,7 +151,7 @@ export function activateTab(layout: SplitLayout, paneId: string, index: number):
 }
 
 /** "Open here": the pane's active tab shows `tab` instead. */
-export function replaceActiveTab(layout: SplitLayout, paneId: string, tab: PaneTab): SplitLayout {
+function replaceActiveTab(layout: SplitLayout, paneId: string, tab: PaneTab): SplitLayout {
   const existing = locateTab(layout, paneTabKey(tab));
   if (existing) return activateTab(layout, existing.paneId, existing.index);
   if (!findPane(layout, paneId)) return layout;
