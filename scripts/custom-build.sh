@@ -149,8 +149,12 @@ export CPLUS_INCLUDE_PATH="$(xcrun --show-sdk-path)/usr/include/c++/v1"
 # sysinfo needs rustc 1.95; the default stable toolchain here is older.
 RUSTUP_TOOLCHAIN=1.95.0 T3CODE_DESKTOP_VERSION="$version" vp run dist:desktop:dmg:arm64
 # The web build rewrites the generated route tree; keep the committed one so the
-# nightly sync finds a clean tree.
-git checkout -- apps/web/src/routeTree.gen.ts
+# nightly sync finds a clean tree. Another git process can hold index.lock briefly.
+for attempt in 1 2 3 4 5 6 7 8 9 10; do
+  git checkout -- apps/web/src/routeTree.gen.ts && break
+  [ "$attempt" -lt 10 ] || exit 1
+  sleep 1
+done
 
 dmg="release/T3-Code-$version-arm64.dmg"
 [ -f "$dmg" ] || { echo "build finished but $dmg is missing" >&2; exit 1; }
