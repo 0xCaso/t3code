@@ -1,5 +1,9 @@
+import { useAtomValue } from "@effect/atom-react";
 import { scopedThreadKey } from "@t3tools/client-runtime/environment";
+import { parseThreadKey, threadKey } from "@t3tools/client-runtime/state/entities";
+import { visibilityParentKey } from "@t3tools/client-runtime/state/threads";
 import type { ScopedThreadRef } from "@t3tools/contracts";
+import * as Option from "effect/Option";
 import { use, useEffect, useEffectEvent, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -10,9 +14,13 @@ import { isElectron } from "../env";
 import { cn } from "../lib/utils";
 import { useSidebarPendingFileDropStore } from "../sidebarPendingFileDropStore";
 import type { ChatViewPane } from "../splitView/types";
-import { useEnvironmentThreadRefs, useQuietThreadShell } from "../state/entities";
+import {
+  useEnvironmentThreadRefs,
+  useAnyEnvironmentHiding,
+  useQuietThreadShell,
+} from "../state/entities";
 import { useEnvironmentShellStatus } from "../state/shell";
-import { useEnvironmentThread } from "../state/threads";
+import { environmentThreadShells, useEnvironmentThread } from "../state/threads";
 import {
   isThreadRouteSnapshotAuthoritative,
   resolveThreadRouteRenderState,
@@ -93,6 +101,28 @@ export function ThreadTargetView({
     unlistedThreadRef?.environmentId ?? null,
     unlistedThreadRef?.threadId ?? null,
   );
+  const hiddenKeys = useAtomValue(environmentThreadShells.hiddenThreadKeysAtom);
+  const unlistedThread = Option.getOrNull(Option.map(unlistedThreadDetail.data, (p) => p.thread));
+  const unlistedParentKey =
+    unlistedThreadRef === null || unlistedThread === null
+      ? null
+      : visibilityParentKey(unlistedThreadRef.environmentId, unlistedThread);
+  const unlistedParentShell = useQuietThreadShell(
+    unlistedParentKey === null ? null : parseThreadKey(unlistedParentKey),
+  );
+  const hidingAnywhere = useAnyEnvironmentHiding();
+  const draftRedirectShell = useQuietThreadShell(draftRedirect ?? null);
+  const hiddenByTagFilter = serverThreadRef !== null && hiddenKeys.has(threadKey(serverThreadRef));
+  // Cached detail can predate a tag or an archive, so while hiding an off-shell thread opens only
+  // as the child of a loaded, visible parent (lineage never changes); anything else stays closed.
+  const offShellBlocked =
+    hidingAnywhere &&
+    unlistedThreadRef !== null &&
+    !(
+      unlistedParentKey !== null &&
+      unlistedParentShell !== null &&
+      !hiddenKeys.has(unlistedParentKey)
+    );
   const renderState = resolveThreadRouteRenderState({
     bootstrapComplete,
     serverThreadExists: serverThreadShell !== null,
@@ -101,19 +131,30 @@ export function ThreadTargetView({
     draftThreadExists: draftThread !== null,
   });
   const environmentHasAnyThreads = environmentThreadRefs.length > 0 || environmentHasDraftThreads;
+  const draftSessionHidden =
+    draftSession !== null &&
+    hiddenKeys.has(
+      threadKey({ environmentId: draftSession.environmentId, threadId: draftSession.threadId }),
+    );
+  const draftRedirectHidden = !!draftRedirect && hiddenKeys.has(threadKey(draftRedirect));
+  // Hidden (tag filter, archive) threads never mount; the host leaves them like a gone thread.
+  const leaveHidden =
+    target.kind === "draft"
+      ? draftSessionHidden || (draftSession === null && draftRedirectHidden)
+      : hiddenByTagFilter || (offShellBlocked && bootstrapComplete && unlistedThread !== null);
 
   const navigateTo = useEffectEvent(onNavigate);
   // Draft promotion runs in the draft store. Follow the redirect it leaves behind,
   // or leave a draft that is gone.
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- follows the draft store's promotion redirect through onNavigate
   useEffect(() => {
-    if (background || target.kind !== "draft" || draftSession) return;
+    if (background || target.kind !== "draft" || draftSession || leaveHidden) return;
     navigateTo(
       draftRedirect
         ? { kind: "thread", threadRef: draftRedirect }
         : { kind: "gone", redirectHome: true },
     );
-  }, [background, draftRedirect, draftSession, target.kind]);
+  }, [background, draftRedirect, draftSession, leaveHidden, target.kind]);
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- clears pending file drops and leaves through onNavigate once a server thread is confirmed missing
   useEffect(() => {
@@ -127,8 +168,15 @@ export function ThreadTargetView({
     }
   }, [background, bootstrapComplete, environmentHasAnyThreads, onNavigate, renderState, target]);
 
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- leaves a hidden thread through onNavigate
+  useEffect(() => {
+    if (!background && leaveHidden) navigateTo({ kind: "gone", redirectHome: true });
+  }, [background, leaveHidden]);
+
   let view: React.ReactNode = null;
-  if (target.kind === "draft") {
+  if (leaveHidden) {
+    // A hidden thread or a draft mid-promotion into one: never mount it.
+  } else if (target.kind === "draft") {
     if (draftSession) {
       view = (
         <ChatView
@@ -141,6 +189,8 @@ export function ThreadTargetView({
           pane={pane}
         />
       );
+    } else if (draftRedirect && hidingAnywhere && draftRedirectShell === null) {
+      // While hiding, a thread outside the live list is judged by the server target, unmounted here.
     } else if (draftRedirect) {
       // Same slot and key as the server route renders, so the swap keeps this instance.
       view = (
@@ -153,6 +203,8 @@ export function ThreadTargetView({
         />
       );
     }
+  } else if (offShellBlocked) {
+    // Before the shell bootstraps, a listed visible thread can still look off-shell.
   } else if (renderState === "ready" || (renderState === "loading" && serverThreadShell !== null)) {
     view = (
       <ChatView
