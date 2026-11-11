@@ -122,6 +122,7 @@ import {
   assistantCitationFromLocation,
   threadCitationActivation,
   threadCitationHref,
+  useSideChatCitationReveal,
 } from "../lib/assistantCitationNavigation";
 import type { AssistantCitationSourceAnchor } from "~/lib/assistantTextSelection";
 import { useStore } from "zustand";
@@ -389,6 +390,7 @@ import type { CodexArtifactTemplate } from "@t3tools/shared/codexArtifactTemplat
 const EMPTY_FEEDBACK_SUBMISSIONS: ReadonlyArray<CodexFeedbackSubmission> = [];
 const EMPTY_PROVIDER_SKILLS: ServerProvider["skills"] = [];
 const EMPTY_TURN_ITEMS: ThreadStructure["turnItems"] = [];
+const EMPTY_RUNS: ThreadStructure["runs"] = [];
 const EMPTY_AUTO_UPDATE_ENVIRONMENTS: ReadonlyArray<EnvironmentPresentation> = [];
 const EMPTY_COMPOSER_BANNER_ITEMS: ReadonlyArray<ComposerBannerStackItem> = [];
 
@@ -585,6 +587,23 @@ export default function ChatView(props: ChatViewProps) {
   const citation = citationHref === null ? null : assistantCitationFromLocation(citationHref);
   const citationRequest: AssistantCitationRequest | null =
     citation && citationActivation !== null ? { citation, key: citationActivation } : null;
+  // A side chat quote lands on the side chat's route and moves to its parent; only the
+  // routed view watches it, so other panes keep their primitive, thread-scoped selectors.
+  const routedView = !embedded && (pane === undefined || pane.active);
+  const routeCitationHref = useLocation({
+    select: (location) => (routedView ? location.href : null),
+  });
+  const routeCitationActivation = useLocation({
+    select: (location) =>
+      routedView
+        ? (location.state.assistantCitationActivation ?? location.state.__TSR_key ?? location.href)
+        : "",
+  });
+  useSideChatCitationReveal(
+    routedView ? routeThreadRef : null,
+    routeCitationHref === null ? null : assistantCitationFromLocation(routeCitationHref),
+    routeCitationActivation,
+  );
   const citationHistory = useCitedHistory(citationRequest);
   const { resolvedTheme } = useTheme();
   const composerRuntimeMode = useComposerDraftStore(
@@ -3717,6 +3736,7 @@ export default function ChatView(props: ChatViewProps) {
                                 draftId={draftId}
                                 activeThreadId={activeThreadId}
                                 activeThread={activeThread}
+                                activeThreadRuns={serverProjection?.runs ?? EMPTY_RUNS}
                                 promptHistoryEntries={timelineEntries}
                                 forceExpandedOnMobile={
                                   forceExpandedMobileComposer && isDraftHeroState
