@@ -594,10 +594,16 @@ export function useThreadActions() {
       sortOrder: sidebarThreadSortOrder,
       now: new Date().toISOString(),
     });
+    let navigatedDuringDelete = false;
+    // The missing-thread redirect and the index draft replace this entry; any other history
+    // action while the delete is pending is the user's own choice, which must win.
+    const stopWatchingHistory = router.history.subscribe(({ action }) => {
+      if (action.type !== "REPLACE") navigatedDuringDelete = true;
+    });
     const deleteResult = await deleteThreadMutation({
       environmentId: threadRef.environmentId,
       input: { threadId: threadRef.threadId },
-    });
+    }).finally(stopWatchingHistory);
     if (deleteResult._tag === "Failure") {
       return deleteResult;
     }
@@ -623,7 +629,7 @@ export function useThreadActions() {
 
     const closedInSplit = closeThreadInSplitLayout(threadRef);
 
-    if (shouldNavigateToFallback && !closedInSplit) {
+    if (shouldNavigateToFallback && !navigatedDuringDelete && !closedInSplit) {
       const fallbackThread = fallbackThreadId
         ? readThreadShell(scopeThreadRef(threadRef.environmentId, fallbackThreadId))
         : null;
